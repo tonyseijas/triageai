@@ -7,7 +7,7 @@
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
@@ -149,11 +149,16 @@
     // Supabase client (optional - works without it in demo mode)
     let supabase = null;
     try {
-      if (window.supabase && SUPABASE_URL !== 'https://your-project.supabase.co') {
-        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      // Supabase JS v2 exposes createClient directly or via window.supabase
+      const createClientFn = window.supabase?.createClient || window.createClient;
+      if (createClientFn && SUPABASE_URL !== 'https://your-project.supabase.co') {
+        supabase = createClientFn(SUPABASE_URL, SUPABASE_ANON_KEY);
+        console.log('Supabase connected successfully');
+      } else {
+        console.log('Supabase createClient not found - running in demo mode');
       }
     } catch (e) {
-      console.log('Supabase not configured - running in demo mode');
+      console.log('Supabase error:', e, '- running in demo mode');
     }
 
     // ============================================
