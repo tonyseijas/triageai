@@ -149,16 +149,23 @@
     // Supabase client (optional - works without it in demo mode)
     let supabase = null;
     try {
-      // Supabase JS v2 exposes createClient directly or via window.supabase
-      const createClientFn = window.supabase?.createClient || window.createClient;
-      if (createClientFn && SUPABASE_URL !== 'https://your-project.supabase.co') {
-        supabase = createClientFn(SUPABASE_URL, SUPABASE_ANON_KEY);
-        console.log('Supabase connected successfully');
+      // Supabase JS v2 from jsdelivr CDN exposes as window.supabase with createClient method
+      console.log('Checking Supabase availability...');
+      console.log('window.supabase:', typeof window.supabase, window.supabase);
+
+      // The CDN version exposes it differently - check all possibilities
+      const supabaseModule = window.supabase;
+
+      if (supabaseModule && typeof supabaseModule.createClient === 'function') {
+        supabase = supabaseModule.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        console.log('Supabase connected successfully!');
       } else {
-        console.log('Supabase createClient not found - running in demo mode');
+        // Log what IS available for debugging
+        console.log('createClient not found. window.supabase contents:', supabaseModule);
+        console.log('All window keys with "supa":', Object.keys(window).filter(k => k.toLowerCase().includes('supa')));
       }
     } catch (e) {
-      console.log('Supabase error:', e, '- running in demo mode');
+      console.log('Supabase init error:', e);
     }
 
     // ============================================
