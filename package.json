@@ -1,0 +1,19 @@
+{
+  "name": "triageai",
+  "version": "1.0.0",
+  "description": "TriageAI - Live voting experience for AI task triage",
+  "private": true,
+  "scripts": {
+    "start": "serve .",
+    "build": "echo 'Static site - no build needed'"
+  },
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "author": "Tony Seijas",
+  "license": "MIT",
+  "devDependencies": {
+    "serve": "^14.2.0"
+  }
+}

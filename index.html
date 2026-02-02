@@ -1,0 +1,1539 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>TriageAI Enhanced - Votación en Vivo</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    * {
+      font-family: 'Inter Tight', sans-serif;
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: #000;
+      color: #fff;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(-20px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    @keyframes scaleIn {
+      from { opacity: 0; transform: scale(0.9); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      75% { transform: translateX(5px); }
+    }
+
+    @keyframes scanline {
+      0% { transform: translateY(-100%); }
+      100% { transform: translateY(100vh); }
+    }
+
+    @keyframes cardEnter {
+      from { opacity: 0; transform: scale(0.8) translateY(50px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    @keyframes celebrate {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.2); }
+      100% { transform: scale(1); }
+    }
+
+    @keyframes ripple {
+      0% { transform: scale(0); opacity: 1; }
+      100% { transform: scale(4); opacity: 0; }
+    }
+
+    .animate-fadeInUp { animation: fadeInUp 0.4s ease-out forwards; }
+    .animate-fadeIn { animation: fadeIn 0.3s ease-out forwards; }
+    .animate-pulse { animation: pulse 2s ease-in-out infinite; }
+    .animate-float { animation: float 3s ease-in-out infinite; }
+    .animate-slideIn { animation: slideIn 0.3s ease-out forwards; }
+    .animate-scaleIn { animation: scaleIn 0.2s ease-out forwards; }
+    .animate-shake { animation: shake 0.5s ease-in-out; }
+    .animate-cardEnter { animation: cardEnter 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+    .animate-celebrate { animation: celebrate 0.3s ease-out; }
+
+    .scanline::after {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: rgba(255,255,255,0.03);
+      animation: scanline 8s linear infinite;
+      pointer-events: none;
+      z-index: 1000;
+    }
+
+    .glass {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .gradient-text {
+      background: linear-gradient(135deg, #fff 0%, #888 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .touch-feedback:active { transform: scale(0.98); }
+    .hover-lift:hover { transform: translateY(-2px); }
+
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: #111; }
+    ::-webkit-scrollbar-thumb { background: #333; }
+
+    .swipe-card {
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    .ripple {
+      position: absolute;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.3);
+      animation: ripple 0.6s ease-out forwards;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useReducer, useCallback, useRef } = React;
+
+    // ============================================
+    // SUPABASE CONFIG (Replace with your credentials)
+    // ============================================
+    const SUPABASE_URL = 'https://fkylhefiqllvpyldbsvl.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZreWxoZWZpcWxsdnB5bGRic3ZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjg3MzEsImV4cCI6MjA4NTY0NDczMX0.mPgzifo5jAKioeds-Zmy08bPH-64qV7PqvRMncxRL9E';
+
+    // Supabase client (optional - works without it in demo mode)
+    let supabase = null;
+    try {
+      if (window.supabase && SUPABASE_URL !== 'https://your-project.supabase.co') {
+        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      }
+    } catch (e) {
+      console.log('Supabase not configured - running in demo mode');
+    }
+
+    // ============================================
+    // DATOS
+    // ============================================
+    const QUESTIONS = [
+      { index: 0, block: 'produccion', text: 'Redimensionar assets para 5 plataformas diferentes' },
+      { index: 1, block: 'produccion', text: 'Generar 10 variantes de un banner a partir de un brief' },
+      { index: 2, block: 'produccion', text: 'Escribir el microcopy de un flujo de checkout' },
+      { index: 3, block: 'produccion', text: 'Crear wireframes a partir de requisitos escritos' },
+      { index: 4, block: 'produccion', text: 'Documentar componentes en el design system' },
+      { index: 5, block: 'research', text: 'Transcribir entrevistas de usuario' },
+      { index: 6, block: 'research', text: 'Identificar los 5 temas principales en 20 entrevistas' },
+      { index: 7, block: 'research', text: 'Decidir qué preguntas hacer en la siguiente ronda de research' },
+      { index: 8, block: 'research', text: 'Interpretar por qué un usuario dice una cosa pero hace otra' },
+      { index: 9, block: 'research', text: 'Detectar frustración en la cara del usuario durante un test' },
+      { index: 10, block: 'estrategia', text: 'Priorizar el backlog cuando todo es "urgente"' },
+      { index: 11, block: 'estrategia', text: 'Decidir si lanzamos con bugs conocidos o retrasamos' },
+      { index: 12, block: 'estrategia', text: 'Elegir entre dos direcciones creativas igualmente válidas' },
+      { index: 13, block: 'estrategia', text: 'Calcular el impacto en conversión de un cambio de diseño' },
+      { index: 14, block: 'estrategia', text: 'Decir "no" a una petición de un stakeholder poderoso' },
+      { index: 15, block: 'coordinacion', text: 'Conseguir que desarrollo implemente el diseño tal como está especificado' },
+      { index: 16, block: 'coordinacion', text: 'Alinear a marketing y producto cuando quieren cosas opuestas' },
+      { index: 17, block: 'coordinacion', text: 'Presentar el trabajo a un comité de dirección' },
+      { index: 18, block: 'coordinacion', text: 'Gestionar un cliente difícil a lo largo de un proyecto' },
+      { index: 19, block: 'coordinacion', text: 'Defender tu decisión de diseño cuando el CEO opina diferente' },
+    ];
+
+    const VOTE_TYPES = {
+      auto: { id: 'auto', label: 'AUTOMATIZABLE', pixel: '🤖', description: 'La IA lo hace, yo reviso', color: '#fff', bgColor: 'rgba(255, 255, 255, 0.2)', borderColor: '#fff' },
+      augmented: { id: 'augmented', label: 'AUMENTADA', pixel: '🤝', description: 'Copilotamos juntos', color: '#a78bfa', bgColor: 'rgba(167, 139, 250, 0.2)', borderColor: '#a78bfa' },
+      human: { id: 'human', label: 'HUMANA', pixel: '✋', description: 'Esto no se delega', color: '#f97316', bgColor: 'rgba(249, 115, 22, 0.2)', borderColor: '#f97316' },
+    };
+
+    const BLOCKS = {
+      produccion: { name: 'PRODUCCIÓN', tag: '01', color: '#34d399', emoji: '🎨' },
+      research: { name: 'RESEARCH', tag: '02', color: '#60a5fa', emoji: '🔍' },
+      estrategia: { name: 'ESTRATEGIA', tag: '03', color: '#fbbf24', emoji: '🎯' },
+      coordinacion: { name: 'COORDINACIÓN', tag: '04', color: '#a78bfa', emoji: '🤝' },
+    };
+
+    const generateSessionCode = () => {
+      const adjectives = ['BRAVE', 'SWIFT', 'BOLD', 'SMART', 'COOL', 'FAST'];
+      const nouns = ['LION', 'HAWK', 'WOLF', 'BEAR', 'FOX', 'OWL'];
+      return `${adjectives[Math.floor(Math.random() * adjectives.length)]}${nouns[Math.floor(Math.random() * nouns.length)]}${Math.floor(Math.random() * 100).toString().padStart(2, '0')}`;
+    };
+
+    const triggerHaptic = (type = 'light') => {
+      if ('vibrate' in navigator) {
+        const patterns = { light: [10], medium: [20], heavy: [30], success: [10, 50, 10] };
+        navigator.vibrate(patterns[type] || patterns.light);
+      }
+    };
+
+    // ============================================
+    // REDUCER
+    // ============================================
+    const initialState = {
+      session: { id: null, code: null, status: 'idle', currentQuestion: 0, config: { autoAdvance: true, secondsPerQuestion: 12 } },
+      participants: [],
+      votes: {},
+      view: 'landing',
+      currentParticipant: null,
+      error: null,
+    };
+
+    function reducer(state, action) {
+      switch (action.type) {
+        case 'CREATE_SESSION':
+          return { ...state, session: { ...state.session, id: action.payload.id, code: action.payload.code, status: 'waiting' }, view: 'facilitator-setup' };
+        case 'JOIN_SESSION':
+          const newParticipant = { id: `p-${Date.now()}`, alias: action.payload.alias || `USER_${String(state.participants.length + 1).padStart(3, '0')}`, joinedAt: new Date() };
+          return { ...state, participants: [...state.participants, newParticipant], currentParticipant: newParticipant, view: state.session.status === 'active' ? 'participant-voting' : 'participant-waiting' };
+        case 'START_SESSION':
+          return { ...state, session: { ...state.session, status: 'active', currentQuestion: 0 }, view: state.view === 'facilitator-setup' ? 'facilitator-live' : 'participant-voting' };
+        case 'ADVANCE_QUESTION':
+          const nextQ = state.session.currentQuestion + 1;
+          if (nextQ >= QUESTIONS.length) return { ...state, session: { ...state.session, status: 'finished' }, view: state.view.startsWith('facilitator') ? 'facilitator-results' : 'participant-results' };
+          return { ...state, session: { ...state.session, currentQuestion: nextQ } };
+        case 'VOTE':
+          return { ...state, votes: { ...state.votes, [`${action.payload.participantId}-${action.payload.questionIndex}`]: action.payload.vote } };
+        case 'UPDATE_CONFIG':
+          return { ...state, session: { ...state.session, config: { ...state.session.config, ...action.payload } } };
+        case 'ADD_SIMULATED_PARTICIPANTS':
+          const simulated = Array.from({ length: action.payload.count }, (_, i) => ({ id: `sim-${Date.now()}-${i}`, alias: `USER_${String(state.participants.length + i + 1).padStart(3, '0')}`, joinedAt: new Date(), isSimulated: true }));
+          return { ...state, participants: [...state.participants, ...simulated] };
+        case 'SIMULATE_VOTES':
+          const newVotes = { ...state.votes };
+          state.participants.forEach(p => {
+            if (p.isSimulated) {
+              const voteKey = `${p.id}-${action.payload.questionIndex}`;
+              if (!newVotes[voteKey]) {
+                const question = QUESTIONS[action.payload.questionIndex];
+                const rand = Math.random();
+                let vote;
+                if (question.block === 'produccion') vote = rand < 0.7 ? 'auto' : rand < 0.9 ? 'augmented' : 'human';
+                else if (question.block === 'research') vote = rand < 0.3 ? 'auto' : rand < 0.7 ? 'augmented' : 'human';
+                else if (question.block === 'estrategia') vote = rand < 0.15 ? 'auto' : rand < 0.5 ? 'augmented' : 'human';
+                else vote = rand < 0.05 ? 'auto' : rand < 0.25 ? 'augmented' : 'human';
+                newVotes[voteKey] = vote;
+              }
+            }
+          });
+          return { ...state, votes: newVotes };
+        case 'SET_VIEW':
+          return { ...state, view: action.payload };
+        case 'SET_ERROR':
+          return { ...state, error: action.payload };
+        case 'CLEAR_ERROR':
+          return { ...state, error: null };
+        case 'END_SESSION':
+          return { ...state, session: { ...state.session, status: 'finished' }, view: state.view.startsWith('facilitator') ? 'facilitator-results' : 'participant-results' };
+        case 'RESET':
+          return initialState;
+        case 'SYNC_SESSION':
+          return { ...state, session: { ...state.session, ...action.payload } };
+        case 'SYNC_PARTICIPANTS':
+          return { ...state, participants: action.payload };
+        case 'SYNC_VOTES':
+          return { ...state, votes: { ...state.votes, ...action.payload } };
+        case 'SET_SESSION_ID':
+          return { ...state, session: { ...state.session, id: action.payload } };
+        default:
+          return state;
+      }
+    }
+
+    // ============================================
+    // SUPABASE REAL-TIME FUNCTIONS
+    // ============================================
+    const useSupabaseRealtime = (state, dispatch) => {
+      const subscriptionsRef = useRef([]);
+
+      // Create session in Supabase
+      const createSessionInDB = async (code, config) => {
+        if (!supabase) return null;
+        try {
+          const { data, error } = await supabase
+            .from('sessions')
+            .insert([{ code, status: 'waiting', current_question: 0, config }])
+            .select()
+            .single();
+          if (error) throw error;
+          return data;
+        } catch (error) {
+          console.error('Error creating session:', error);
+          return null;
+        }
+      };
+
+      // Find session by code
+      const findSessionByCode = async (code) => {
+        if (!supabase) return null;
+        try {
+          const { data, error } = await supabase
+            .from('sessions')
+            .select('*')
+            .eq('code', code.toUpperCase())
+            .single();
+          if (error) return null;
+          return data;
+        } catch (error) {
+          return null;
+        }
+      };
+
+      // Add participant to DB
+      const addParticipantToDB = async (sessionId, participantId, alias) => {
+        if (!supabase) return null;
+        try {
+          const { data, error } = await supabase
+            .from('participants')
+            .insert([{ id: participantId, session_id: sessionId, alias, is_active: true }])
+            .select()
+            .single();
+          if (error) throw error;
+          return data;
+        } catch (error) {
+          console.error('Error adding participant:', error);
+          return null;
+        }
+      };
+
+      // Submit vote to DB
+      const submitVoteToDB = async (sessionId, participantId, questionIndex, vote) => {
+        if (!supabase) return false;
+        try {
+          const { error } = await supabase
+            .from('votes')
+            .upsert([{ session_id: sessionId, participant_id: participantId, question_index: questionIndex, vote }],
+              { onConflict: 'session_id,participant_id,question_index' });
+          if (error) throw error;
+          return true;
+        } catch (error) {
+          console.error('Error submitting vote:', error);
+          return false;
+        }
+      };
+
+      // Update session in DB
+      const updateSessionInDB = async (sessionId, updates) => {
+        if (!supabase) return false;
+        try {
+          const { error } = await supabase
+            .from('sessions')
+            .update(updates)
+            .eq('id', sessionId);
+          if (error) throw error;
+          return true;
+        } catch (error) {
+          console.error('Error updating session:', error);
+          return false;
+        }
+      };
+
+      // Load participants from DB
+      const loadParticipants = async (sessionId) => {
+        if (!supabase) return [];
+        try {
+          const { data, error } = await supabase
+            .from('participants')
+            .select('*')
+            .eq('session_id', sessionId)
+            .eq('is_active', true);
+          if (error) throw error;
+          return data || [];
+        } catch (error) {
+          return [];
+        }
+      };
+
+      // Load votes from DB
+      const loadVotes = async (sessionId) => {
+        if (!supabase) return {};
+        try {
+          const { data, error } = await supabase
+            .from('votes')
+            .select('*')
+            .eq('session_id', sessionId);
+          if (error) throw error;
+          const votesMap = {};
+          (data || []).forEach(v => {
+            votesMap[`${v.participant_id}-${v.question_index}`] = v.vote;
+          });
+          return votesMap;
+        } catch (error) {
+          return {};
+        }
+      };
+
+      // Subscribe to session changes
+      const subscribeToSession = (sessionId) => {
+        if (!supabase) return null;
+        const channel = supabase
+          .channel(`session-${sessionId}`)
+          .on('postgres_changes',
+            { event: '*', schema: 'public', table: 'sessions', filter: `id=eq.${sessionId}` },
+            (payload) => {
+              if (payload.new) {
+                dispatch({
+                  type: 'SYNC_SESSION',
+                  payload: {
+                    status: payload.new.status,
+                    currentQuestion: payload.new.current_question,
+                    config: payload.new.config
+                  }
+                });
+              }
+            }
+          )
+          .subscribe();
+        subscriptionsRef.current.push(channel);
+        return channel;
+      };
+
+      // Subscribe to participants
+      const subscribeToParticipants = (sessionId) => {
+        if (!supabase) return null;
+        const channel = supabase
+          .channel(`participants-${sessionId}`)
+          .on('postgres_changes',
+            { event: '*', schema: 'public', table: 'participants', filter: `session_id=eq.${sessionId}` },
+            async () => {
+              const participants = await loadParticipants(sessionId);
+              dispatch({ type: 'SYNC_PARTICIPANTS', payload: participants });
+            }
+          )
+          .subscribe();
+        subscriptionsRef.current.push(channel);
+        return channel;
+      };
+
+      // Subscribe to votes
+      const subscribeToVotes = (sessionId) => {
+        if (!supabase) return null;
+        const channel = supabase
+          .channel(`votes-${sessionId}`)
+          .on('postgres_changes',
+            { event: '*', schema: 'public', table: 'votes', filter: `session_id=eq.${sessionId}` },
+            async () => {
+              const votes = await loadVotes(sessionId);
+              dispatch({ type: 'SYNC_VOTES', payload: votes });
+            }
+          )
+          .subscribe();
+        subscriptionsRef.current.push(channel);
+        return channel;
+      };
+
+      // Cleanup all subscriptions
+      const cleanup = () => {
+        subscriptionsRef.current.forEach(channel => {
+          if (supabase) supabase.removeChannel(channel);
+        });
+        subscriptionsRef.current = [];
+      };
+
+      return {
+        createSessionInDB,
+        findSessionByCode,
+        addParticipantToDB,
+        submitVoteToDB,
+        updateSessionInDB,
+        loadParticipants,
+        loadVotes,
+        subscribeToSession,
+        subscribeToParticipants,
+        subscribeToVotes,
+        cleanup,
+        isConnected: !!supabase
+      };
+    };
+
+    // ============================================
+    // COMPONENTES
+    // ============================================
+    const PixelProgressBar = ({ current, total }) => {
+      const blocks = 20;
+      const filled = Math.round((current + 1) / total * blocks);
+      return (
+        <div style={{ width: '100%' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#666', marginBottom: '8px', fontFamily: 'monospace' }}>
+            <span>{String(current + 1).padStart(2, '0')}/{String(total).padStart(2, '0')}</span>
+            <span>{Math.round(((current + 1) / total) * 100)}%</span>
+          </div>
+          <div style={{ display: 'flex', gap: '2px' }}>
+            {Array.from({ length: blocks }).map((_, i) => (
+              <div key={i} style={{ height: '8px', flex: 1, background: i < filled ? '#fff' : '#222', transition: 'all 0.3s', transitionDelay: `${i * 20}ms`, borderRadius: '1px' }} />
+            ))}
+          </div>
+        </div>
+      );
+    };
+
+    const PixelTimer = ({ seconds, maxSeconds, onComplete, isPaused }) => {
+      const [remaining, setRemaining] = useState(seconds);
+      useEffect(() => { setRemaining(seconds); }, [seconds]);
+      useEffect(() => {
+        if (isPaused || remaining <= 0) { if (remaining <= 0) onComplete?.(); return; }
+        const timer = setTimeout(() => setRemaining(r => r - 1), 1000);
+        return () => clearTimeout(timer);
+      }, [remaining, onComplete, isPaused]);
+      const percentage = (remaining / maxSeconds) * 100;
+      const isLow = remaining <= 3;
+      return (
+        <div style={{ width: '100%' }}>
+          <div style={{ height: '12px', background: '#222', borderRadius: '6px', overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${percentage}%`, background: isLow ? '#ef4444' : 'linear-gradient(90deg, #fff, #888)', transition: 'all 1s linear', borderRadius: '6px' }} />
+          </div>
+          <div style={{ textAlign: 'center', fontSize: '14px', marginTop: '8px', fontFamily: 'monospace', fontWeight: 'bold', color: isLow ? '#ef4444' : '#666' }}>
+            {isPaused ? 'PAUSADO' : String(remaining).padStart(2, '0')}
+          </div>
+        </div>
+      );
+    };
+
+    const ResultBar = ({ type, count, total, showCount }) => {
+      const voteType = VOTE_TYPES[type];
+      const percentage = total > 0 ? Math.round((count / total) * 100) : 0;
+      const colors = { auto: '#fff', augmented: '#a78bfa', human: '#f97316' };
+      return (
+        <div style={{ marginBottom: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', marginBottom: '8px' }}>
+            <span style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '20px' }}>{voteType.pixel}</span>
+              {voteType.label}
+            </span>
+            <span style={{ fontFamily: 'monospace', color: '#888' }}>
+              {percentage}%
+              {showCount && <span style={{ color: '#555', marginLeft: '8px' }}>({count})</span>}
+            </span>
+          </div>
+          <div style={{ height: '16px', background: '#111', borderRadius: '8px', overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${percentage}%`, background: `linear-gradient(90deg, ${colors[type]} 0%, ${colors[type]}88 100%)`, transition: 'all 0.7s ease-out', transitionDelay: '0.2s', borderRadius: '8px' }} />
+          </div>
+        </div>
+      );
+    };
+
+    const QRCodeComponent = ({ value, size = 150 }) => {
+      const canvasRef = useRef(null);
+
+      useEffect(() => {
+        if (canvasRef.current && value && window.QRCode) {
+          window.QRCode.toCanvas(canvasRef.current, value, {
+            width: size - 32,
+            margin: 2,
+            color: {
+              dark: '#000000',
+              light: '#ffffff'
+            }
+          }, (error) => {
+            if (error) console.error('QR Code error:', error);
+          });
+        }
+      }, [value, size]);
+
+      return (
+        <div style={{ background: '#fff', padding: '16px', display: 'inline-block', borderRadius: '12px' }}>
+          <canvas ref={canvasRef} style={{ display: 'block' }} />
+        </div>
+      );
+    };
+
+    // ============================================
+    // ENHANCED SWIPE CARD
+    // ============================================
+    const SwipeCard = ({ question, onVote, disabled }) => {
+      const cardRef = useRef(null);
+      const [position, setPosition] = useState({ x: 0, y: 0 });
+      const [isDragging, setIsDragging] = useState(false);
+      const [startPos, setStartPos] = useState({ x: 0, y: 0 });
+      const [exitDirection, setExitDirection] = useState(null);
+      const [currentHint, setCurrentHint] = useState(null);
+      const [ripples, setRipples] = useState([]);
+
+      const THRESHOLD = 100;
+
+      const getDirection = (x, y) => {
+        const absX = Math.abs(x);
+        const absY = Math.abs(y);
+        if (absX < 50 && absY < 50) return null;
+        if (y < -THRESHOLD && absY > absX) return 'augmented';
+        if (x > THRESHOLD && absX > absY) return 'auto';
+        if (x < -THRESHOLD && absX > absY) return 'human';
+        return null;
+      };
+
+      const getHintDirection = (x, y) => {
+        const absX = Math.abs(x);
+        const absY = Math.abs(y);
+        if (absX < 30 && absY < 30) return null;
+        if (absY > absX && y < 0) return 'augmented';
+        if (absX > absY && x > 0) return 'auto';
+        if (absX > absY && x < 0) return 'human';
+        return null;
+      };
+
+      const handleStart = (clientX, clientY) => {
+        if (disabled || exitDirection) return;
+        setIsDragging(true);
+        setStartPos({ x: clientX, y: clientY });
+        triggerHaptic('light');
+      };
+
+      const handleMove = (clientX, clientY) => {
+        if (!isDragging || disabled || exitDirection) return;
+        const newX = clientX - startPos.x;
+        const newY = clientY - startPos.y;
+        setPosition({ x: newX, y: newY });
+        setCurrentHint(getHintDirection(newX, newY));
+      };
+
+      const handleEnd = () => {
+        if (!isDragging || disabled || exitDirection) return;
+        setIsDragging(false);
+        const direction = getDirection(position.x, position.y);
+        if (direction) {
+          triggerHaptic('success');
+          setExitDirection(direction);
+          setTimeout(() => onVote(direction), 300);
+        } else {
+          setPosition({ x: 0, y: 0 });
+          setCurrentHint(null);
+        }
+      };
+
+      const addRipple = (e) => {
+        const rect = cardRef.current?.getBoundingClientRect();
+        if (!rect) return;
+        const ripple = { id: Date.now(), x: e.clientX - rect.left, y: e.clientY - rect.top };
+        setRipples(prev => [...prev, ripple]);
+        setTimeout(() => setRipples(prev => prev.filter(r => r.id !== ripple.id)), 600);
+      };
+
+      const onMouseDown = (e) => { addRipple(e); handleStart(e.clientX, e.clientY); };
+      const onMouseMove = (e) => handleMove(e.clientX, e.clientY);
+      const onMouseUp = () => handleEnd();
+      const onMouseLeave = () => { if (isDragging) handleEnd(); };
+      const onTouchStart = (e) => handleStart(e.touches[0].clientX, e.touches[0].clientY);
+      const onTouchMove = (e) => handleMove(e.touches[0].clientX, e.touches[0].clientY);
+      const onTouchEnd = () => handleEnd();
+
+      const rotation = position.x * 0.1;
+      const intensity = Math.min(Math.sqrt(position.x ** 2 + position.y ** 2) / THRESHOLD, 1);
+
+      const getExitTransform = () => {
+        if (exitDirection === 'auto') return 'translateX(150vw) rotate(30deg)';
+        if (exitDirection === 'human') return 'translateX(-150vw) rotate(-30deg)';
+        if (exitDirection === 'augmented') return 'translateY(-150vh) rotate(0deg)';
+        return `translateX(${position.x}px) translateY(${position.y}px) rotate(${rotation}deg)`;
+      };
+
+      return (
+        <div
+          ref={cardRef}
+          className="swipe-card"
+          onMouseDown={onMouseDown}
+          onMouseMove={onMouseMove}
+          onMouseUp={onMouseUp}
+          onMouseLeave={onMouseLeave}
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+          style={{
+            width: '100%',
+            maxWidth: '360px',
+            background: currentHint ? `linear-gradient(135deg, #111 0%, ${VOTE_TYPES[currentHint].bgColor} 100%)` : '#111',
+            borderRadius: '24px',
+            padding: '32px',
+            cursor: disabled ? 'default' : isDragging ? 'grabbing' : 'grab',
+            boxShadow: `0 ${20 + intensity * 20}px ${40 + intensity * 40}px rgba(0,0,0,0.5)`,
+            border: currentHint ? `2px solid ${VOTE_TYPES[currentHint].borderColor}` : '1px solid #333',
+            transform: getExitTransform(),
+            opacity: exitDirection ? 0 : 1,
+            transition: exitDirection ? 'all 0.3s ease-out' : isDragging ? 'none' : 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+            position: 'relative',
+            overflow: 'hidden',
+          }}
+        >
+          {ripples.map(ripple => (
+            <span key={ripple.id} className="ripple" style={{ left: ripple.x, top: ripple.y, width: '10px', height: '10px' }} />
+          ))}
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '24px' }}>
+            <span style={{ fontSize: '24px' }}>{BLOCKS[question.block].emoji}</span>
+            <span style={{ fontSize: '12px', fontWeight: 'bold', letterSpacing: '2px', color: BLOCKS[question.block].color }}>{BLOCKS[question.block].name}</span>
+          </div>
+
+          <h2 style={{ fontSize: '24px', fontWeight: 'bold', lineHeight: 1.4, marginBottom: '24px', color: '#fff' }}>{question.text}</h2>
+
+          {currentHint && (
+            <div style={{
+              position: 'absolute',
+              inset: 0,
+              borderRadius: '24px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              pointerEvents: 'none',
+              background: VOTE_TYPES[currentHint].bgColor,
+              opacity: intensity,
+              transition: 'opacity 0.1s',
+            }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '64px', marginBottom: '8px' }}>{VOTE_TYPES[currentHint].pixel}</div>
+                <div style={{ fontSize: '14px', fontWeight: 'bold', letterSpacing: '2px', color: VOTE_TYPES[currentHint].color }}>{VOTE_TYPES[currentHint].label}</div>
+              </div>
+            </div>
+          )}
+
+          {!currentHint && <p style={{ textAlign: 'center', color: '#555', fontSize: '14px' }}>Arrastra para votar</p>}
+        </div>
+      );
+    };
+
+    // ============================================
+    // VISTAS
+    // ============================================
+    function LandingPage({ dispatch, state, supabaseApi }) {
+      const [code, setCode] = useState('');
+      const [alias, setAlias] = useState('');
+      const [mode, setMode] = useState(null);
+      const [isLoading, setIsLoading] = useState(false);
+
+      const handleJoin = async () => {
+        if (!code.trim()) return;
+        setIsLoading(true);
+
+        if (supabaseApi.isConnected) {
+          // Real-time mode: find session in DB
+          const session = await supabaseApi.findSessionByCode(code.trim());
+          if (!session) {
+            dispatch({ type: 'SET_ERROR', payload: 'Sesión no encontrada. Verifica el código.' });
+            setIsLoading(false);
+            return;
+          }
+          if (session.status === 'finished') {
+            dispatch({ type: 'SET_ERROR', payload: 'Esta sesión ya ha terminado.' });
+            setIsLoading(false);
+            return;
+          }
+
+          // Create participant
+          const participantId = `p-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+          const participantAlias = alias.trim() || `USER_${Date.now().toString().slice(-4)}`;
+          await supabaseApi.addParticipantToDB(session.id, participantId, participantAlias);
+
+          // Subscribe to updates
+          supabaseApi.subscribeToSession(session.id);
+          supabaseApi.subscribeToParticipants(session.id);
+          supabaseApi.subscribeToVotes(session.id);
+
+          // Load existing data
+          const participants = await supabaseApi.loadParticipants(session.id);
+          const votes = await supabaseApi.loadVotes(session.id);
+
+          dispatch({ type: 'SET_SESSION_ID', payload: session.id });
+          dispatch({ type: 'SYNC_SESSION', payload: {
+            id: session.id,
+            code: session.code,
+            status: session.status,
+            currentQuestion: session.current_question,
+            config: session.config
+          }});
+          dispatch({ type: 'SYNC_PARTICIPANTS', payload: participants });
+          dispatch({ type: 'SYNC_VOTES', payload: votes });
+          dispatch({ type: 'JOIN_SESSION', payload: {
+            code: session.code,
+            alias: participantAlias,
+            participantId
+          }});
+        } else {
+          // Demo mode: just join locally
+          dispatch({ type: 'JOIN_SESSION', payload: { code: code.trim(), alias: alias.trim() } });
+        }
+        setIsLoading(false);
+      };
+
+      const handleCreate = async () => {
+        setIsLoading(true);
+        const sessionCode = generateSessionCode();
+
+        if (supabaseApi.isConnected) {
+          // Real-time mode: create session in DB
+          const session = await supabaseApi.createSessionInDB(sessionCode, { autoAdvance: true, secondsPerQuestion: 12 });
+          if (session) {
+            // Subscribe to updates
+            supabaseApi.subscribeToSession(session.id);
+            supabaseApi.subscribeToParticipants(session.id);
+            supabaseApi.subscribeToVotes(session.id);
+
+            dispatch({ type: 'CREATE_SESSION', payload: { id: session.id, code: sessionCode } });
+          } else {
+            dispatch({ type: 'SET_ERROR', payload: 'Error al crear la sesión. Intenta de nuevo.' });
+          }
+        } else {
+          // Demo mode: create locally
+          dispatch({ type: 'CREATE_SESSION', payload: { id: `session-${Date.now()}`, code: sessionCode } });
+        }
+        setIsLoading(false);
+      };
+
+      const buttonStyle = { width: '100%', padding: '20px', fontSize: '18px', fontWeight: '900', border: 'none', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', borderRadius: '12px' };
+      const inputStyle = { width: '100%', padding: '16px', background: '#000', border: '2px solid #333', color: '#fff', fontSize: '18px', fontFamily: 'monospace', textAlign: 'center', outline: 'none', borderRadius: '8px' };
+
+      return (
+        <div className="scanline" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+          <div className="animate-fadeInUp" style={{ maxWidth: '400px', width: '100%' }}>
+            <div style={{ textAlign: 'center', marginBottom: '48px' }}>
+              <div className="gradient-text" style={{ fontSize: '56px', fontWeight: '900', letterSpacing: '-2px', marginBottom: '8px' }}>
+                TRIAGE<span style={{ color: '#666' }}>AI</span>
+              </div>
+              <div style={{ color: '#666', fontSize: '12px', letterSpacing: '2px' }}>
+                ¿AUTOMATIZABLE · AUMENTADA · HUMANA?
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginTop: '24px' }}>
+                <span className="animate-float" style={{ fontSize: '32px' }}>🤖</span>
+                <span className="animate-float" style={{ fontSize: '32px', animationDelay: '0.2s' }}>🤝</span>
+                <span className="animate-float" style={{ fontSize: '32px', animationDelay: '0.4s' }}>✋</span>
+              </div>
+            </div>
+
+            {state.error && (
+              <div className="animate-shake" style={{ marginBottom: '24px', padding: '16px', border: '2px solid #ef4444', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', textAlign: 'center', borderRadius: '8px' }}>
+                {state.error}
+                <button onClick={() => dispatch({ type: 'CLEAR_ERROR' })} style={{ marginLeft: '16px', background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '16px' }}>✕</button>
+              </div>
+            )}
+
+            {/* Connection status */}
+            <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+              <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 16px',
+                background: supabaseApi.isConnected ? 'rgba(52, 211, 153, 0.1)' : 'rgba(251, 191, 36, 0.1)',
+                border: `1px solid ${supabaseApi.isConnected ? '#34d399' : '#fbbf24'}`,
+                borderRadius: '20px',
+                fontSize: '11px',
+                color: supabaseApi.isConnected ? '#34d399' : '#fbbf24'
+              }}>
+                <span className="animate-pulse" style={{
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  background: supabaseApi.isConnected ? '#34d399' : '#fbbf24'
+                }}></span>
+                {supabaseApi.isConnected ? 'MODO MULTIJUGADOR' : 'MODO DEMO'}
+              </span>
+            </div>
+
+            {!mode && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <button onClick={() => setMode('join')} disabled={isLoading} className="touch-feedback hover-lift" style={{ ...buttonStyle, background: '#fff', color: '#000' }}>
+                  <span style={{ fontSize: '24px' }}>📱</span> UNIRSE A SESIÓN
+                </button>
+                <button onClick={handleCreate} disabled={isLoading} className="touch-feedback hover-lift" style={{ ...buttonStyle, background: '#000', color: '#fff', border: '2px solid #333' }}>
+                  {isLoading ? <><span className="animate-pulse">⏳</span> CREANDO...</> : <><span style={{ fontSize: '24px' }}>🎮</span> CREAR SESIÓN</>}
+                </button>
+              </div>
+            )}
+
+            {mode === 'join' && (
+              <div className="animate-fadeInUp" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '8px', letterSpacing: '2px' }}>CÓDIGO DE SALA</label>
+                  <input type="text" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="BRAVELION42" maxLength={15} autoFocus style={{ ...inputStyle, letterSpacing: '4px' }} onFocus={(e) => e.target.style.borderColor = '#fff'} onBlur={(e) => e.target.style.borderColor = '#333'} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '8px', letterSpacing: '2px' }}>TU ALIAS (OPCIONAL)</label>
+                  <input type="text" value={alias} onChange={(e) => setAlias(e.target.value)} placeholder="ANON" style={inputStyle} onFocus={(e) => e.target.style.borderColor = '#fff'} onBlur={(e) => e.target.style.borderColor = '#333'} />
+                </div>
+                <button onClick={handleJoin} disabled={!code.trim() || isLoading} className="touch-feedback hover-lift" style={{ ...buttonStyle, background: code.trim() && !isLoading ? '#fff' : '#333', color: code.trim() && !isLoading ? '#000' : '#666', cursor: code.trim() && !isLoading ? 'pointer' : 'not-allowed' }}>
+                  {isLoading ? <><span className="animate-pulse">⏳</span> CONECTANDO...</> : 'ENTRAR →'}
+                </button>
+                <button onClick={() => setMode(null)} disabled={isLoading} style={{ ...buttonStyle, background: 'transparent', color: '#666', padding: '12px' }}>
+                  ← VOLVER
+                </button>
+              </div>
+            )}
+
+            <div style={{ marginTop: '64px', textAlign: 'center' }}>
+              <div style={{ color: '#333', fontSize: '10px', letterSpacing: '2px' }}>GARAJE DE IDEAS®</div>
+              <div style={{ color: '#222', fontSize: '9px', marginTop: '4px' }}>DIGITAL FOR NONCONFORMISTS</div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function ParticipantWaiting({ session, participantCount, dispatch, supabaseApi }) {
+      const handleStartDemo = () => {
+        dispatch({ type: 'ADD_SIMULATED_PARTICIPANTS', payload: { count: 25 } });
+        dispatch({ type: 'START_SESSION' });
+      };
+
+      return (
+        <div className="scanline" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+          <div className="animate-fadeInUp" style={{ maxWidth: '400px', width: '100%', textAlign: 'center' }}>
+            <div className="animate-float" style={{ fontSize: '80px', marginBottom: '32px' }}>◻</div>
+            <h2 style={{ fontSize: '24px', fontWeight: '900', marginBottom: '16px' }}>ESPERANDO</h2>
+            <p style={{ color: '#666', marginBottom: '16px' }}>
+              {supabaseApi.isConnected
+                ? 'El facilitador iniciará la votación pronto'
+                : 'La votación comenzará en breve'}
+            </p>
+
+            {/* Connection status */}
+            <div style={{ marginBottom: '24px' }}>
+              <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 16px',
+                background: supabaseApi.isConnected ? 'rgba(52, 211, 153, 0.1)' : 'rgba(251, 191, 36, 0.1)',
+                border: `1px solid ${supabaseApi.isConnected ? '#34d399' : '#fbbf24'}`,
+                borderRadius: '20px',
+                fontSize: '11px',
+                color: supabaseApi.isConnected ? '#34d399' : '#fbbf24'
+              }}>
+                <span className="animate-pulse" style={{
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  background: supabaseApi.isConnected ? '#34d399' : '#fbbf24'
+                }}></span>
+                {supabaseApi.isConnected ? 'SINCRONIZADO EN TIEMPO REAL' : 'MODO DEMO'}
+              </span>
+            </div>
+
+            <div className="glass" style={{ padding: '24px', marginBottom: '32px', borderRadius: '12px' }}>
+              <div style={{ fontSize: '12px', color: '#666', letterSpacing: '2px', marginBottom: '8px' }}>CÓDIGO</div>
+              <div style={{ fontSize: '32px', fontFamily: 'monospace', fontWeight: '900', letterSpacing: '4px' }}>{session.code}</div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', color: '#888', marginBottom: '32px' }}>
+              <span className="animate-pulse" style={{ display: 'inline-block', width: '12px', height: '12px', background: '#34d399', borderRadius: '50%' }}></span>
+              <span style={{ fontFamily: 'monospace', fontSize: '24px' }}>{String(participantCount).padStart(3, '0')}</span>
+              <span style={{ color: '#555' }}>conectados</span>
+            </div>
+
+            {/* Only show demo button if NOT in real-time mode */}
+            {!supabaseApi.isConnected && (
+              <div style={{ borderTop: '1px solid #333', paddingTop: '32px' }}>
+                <p style={{ fontSize: '12px', color: '#555', marginBottom: '16px', letterSpacing: '2px' }}>¿PROBANDO LA APP?</p>
+                <button onClick={handleStartDemo} className="touch-feedback hover-lift" style={{ width: '100%', padding: '16px', background: 'transparent', color: '#fff', border: '2px solid #333', fontWeight: 'bold', cursor: 'pointer', borderRadius: '8px' }}>
+                  INICIAR MODO DEMO →
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    function ParticipantVoting({ state, dispatch, supabaseApi }) {
+      const { session, currentParticipant, votes } = state;
+      const question = QUESTIONS[session.currentQuestion];
+      const [cardKey, setCardKey] = useState(0);
+      const [hasVotedThisQuestion, setHasVotedThisQuestion] = useState(false);
+      const prevQuestionRef = useRef(session.currentQuestion);
+
+      // Reset vote state when question changes
+      useEffect(() => {
+        if (prevQuestionRef.current !== session.currentQuestion) {
+          setHasVotedThisQuestion(false);
+          setCardKey(k => k + 1);
+          prevQuestionRef.current = session.currentQuestion;
+        }
+      }, [session.currentQuestion]);
+
+      const myCounts = { auto: 0, augmented: 0, human: 0 };
+      QUESTIONS.forEach((q, i) => {
+        const vote = votes[`${currentParticipant?.id}-${i}`];
+        if (vote) myCounts[vote]++;
+      });
+
+      const submitVote = async (voteType) => {
+        if (hasVotedThisQuestion) return;
+        setHasVotedThisQuestion(true);
+
+        // Submit to Supabase if connected
+        if (supabaseApi.isConnected && session.id) {
+          await supabaseApi.submitVoteToDB(session.id, currentParticipant.id, session.currentQuestion, voteType);
+        }
+
+        // Update local state
+        dispatch({ type: 'VOTE', payload: { participantId: currentParticipant.id, questionIndex: session.currentQuestion, vote: voteType } });
+
+        // Only auto-advance in demo mode (facilitator controls in real-time mode)
+        if (!supabaseApi.isConnected) {
+          setTimeout(() => {
+            dispatch({ type: 'SIMULATE_VOTES', payload: { questionIndex: session.currentQuestion } });
+            dispatch({ type: 'ADVANCE_QUESTION' });
+            setCardKey(k => k + 1);
+          }, 400);
+        }
+      };
+
+      const handleVote = useCallback((voteType) => {
+        submitVote(voteType);
+      }, [currentParticipant, session.currentQuestion, session.id, hasVotedThisQuestion]);
+
+      const handleButtonVote = (voteType) => {
+        triggerHaptic('medium');
+        submitVote(voteType);
+      };
+
+      return (
+        <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ padding: '16px', borderBottom: '1px solid #222' }}>
+            <div style={{ maxWidth: '400px', margin: '0 auto' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#666', marginBottom: '8px', fontFamily: 'monospace' }}>
+                <span>{session.currentQuestion + 1} / {QUESTIONS.length}</span>
+                <span>{BLOCKS[question.block].emoji} {BLOCKS[question.block].name}</span>
+              </div>
+              <div style={{ display: 'flex', gap: '4px' }}>
+                {QUESTIONS.map((_, i) => (
+                  <div key={i} style={{ height: '6px', flex: 1, borderRadius: '3px', background: i < session.currentQuestion ? '#fff' : i === session.currentQuestion ? '#666' : '#222', transition: 'all 0.3s' }} />
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+            {/* Zone indicators */}
+            <div style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', textAlign: 'center', opacity: 0.4 }}>
+              <div style={{ fontSize: '32px', marginBottom: '4px' }}>✋</div>
+              <div style={{ fontSize: '10px', fontWeight: 'bold', letterSpacing: '1px', color: '#f97316' }}>HUMANA</div>
+            </div>
+            <div style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', textAlign: 'center', opacity: 0.4 }}>
+              <div style={{ fontSize: '32px', marginBottom: '4px' }}>🤖</div>
+              <div style={{ fontSize: '10px', fontWeight: 'bold', letterSpacing: '1px', color: '#fff' }}>AUTO</div>
+            </div>
+            <div style={{ position: 'absolute', top: '16px', left: '50%', transform: 'translateX(-50%)', textAlign: 'center', opacity: 0.4 }}>
+              <div style={{ fontSize: '32px', marginBottom: '4px' }}>🤝</div>
+              <div style={{ fontSize: '10px', fontWeight: 'bold', letterSpacing: '1px', color: '#a78bfa' }}>AUMENTADA</div>
+            </div>
+
+            <SwipeCard key={`${session.currentQuestion}-${cardKey}`} question={question} onVote={handleVote} disabled={false} />
+          </div>
+
+          <div style={{ padding: '16px', borderTop: '1px solid #222' }}>
+            <div style={{ maxWidth: '400px', margin: '0 auto' }}>
+              <p style={{ textAlign: 'center', color: '#444', fontSize: '12px', marginBottom: '12px', letterSpacing: '1px' }}>O toca para votar</p>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                {['human', 'augmented', 'auto'].map(type => (
+                  <button key={type} onClick={() => handleButtonVote(type)} className="touch-feedback" style={{ flex: 1, padding: '16px 8px', background: 'transparent', border: `1px solid ${VOTE_TYPES[type].borderColor}40`, borderRadius: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', color: '#fff', transition: 'all 0.2s' }}>
+                    <span style={{ fontSize: '28px' }}>{VOTE_TYPES[type].pixel}</span>
+                    <span style={{ fontSize: '10px', letterSpacing: '1px', color: VOTE_TYPES[type].color }}>{type === 'augmented' ? 'AUMEN' : VOTE_TYPES[type].label}</span>
+                  </button>
+                ))}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '24px', padding: '12px', background: '#111', borderRadius: '8px' }}>
+                {['human', 'augmented', 'auto'].map(type => (
+                  <div key={type} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '16px' }}>{VOTE_TYPES[type].pixel}</span>
+                    <span style={{ fontFamily: 'monospace', fontWeight: 'bold', color: VOTE_TYPES[type].color }}>{myCounts[type]}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function ParticipantResults({ state }) {
+      const { votes, currentParticipant } = state;
+      const myVotes = QUESTIONS.map((q, i) => votes[`${currentParticipant?.id}-${i}`] || null);
+      const summary = { auto: myVotes.filter(v => v === 'auto').length, augmented: myVotes.filter(v => v === 'augmented').length, human: myVotes.filter(v => v === 'human').length };
+
+      const getProfile = () => {
+        if (summary.auto > summary.augmented && summary.auto > summary.human) return { emoji: '🤖', title: 'AUTOMATIZADOR', desc: 'Ves el potencial de la IA en muchas tareas', color: '#fff' };
+        if (summary.human > summary.auto && summary.human > summary.augmented) return { emoji: '✋', title: 'HUMANISTA', desc: 'Valoras el toque humano en tu trabajo', color: '#f97316' };
+        return { emoji: '🤝', title: 'HÍBRIDO', desc: 'Buscas el equilibrio entre IA y humano', color: '#a78bfa' };
+      };
+      const profile = getProfile();
+
+      return (
+        <div className="scanline" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+          <div className="animate-fadeInUp" style={{ maxWidth: '400px', width: '100%' }}>
+            <div style={{ textAlign: 'center', marginBottom: '48px' }}>
+              <div className="animate-float animate-celebrate" style={{ fontSize: '96px', marginBottom: '16px' }}>{profile.emoji}</div>
+              <h2 style={{ fontSize: '32px', fontWeight: '900', marginBottom: '8px', color: profile.color }}>{profile.title}</h2>
+              <p style={{ color: '#666' }}>{profile.desc}</p>
+            </div>
+
+            <div className="glass" style={{ padding: '24px', marginBottom: '32px', borderRadius: '16px' }}>
+              <div style={{ textAlign: 'center', fontSize: '12px', color: '#666', letterSpacing: '2px', marginBottom: '24px' }}>TU RESUMEN</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', textAlign: 'center' }}>
+                {[['auto', '🤖', 'AUTO', '#fff'], ['augmented', '🤝', 'AUMEN', '#a78bfa'], ['human', '✋', 'HUMAN', '#f97316']].map(([key, emoji, label, color]) => (
+                  <div key={key}>
+                    <div style={{ fontSize: '40px', fontWeight: '900', marginBottom: '8px', color }}>{summary[key]}</div>
+                    <div style={{ fontSize: '28px', marginBottom: '4px' }}>{emoji}</div>
+                    <div style={{ fontSize: '10px', color: '#666', letterSpacing: '2px' }}>{label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ border: '2px solid #fff', padding: '24px', borderRadius: '16px', textAlign: 'center' }}>
+              <p style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '8px' }}>La pregunta incómoda:</p>
+              <p style={{ color: '#888', lineHeight: 1.6 }}>¿Qué porcentaje de tu última semana fueron tareas automatizables?</p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function FacilitatorSetup({ state, dispatch, supabaseApi }) {
+      const { session, participants } = state;
+      const [config, setConfig] = useState(session.config);
+
+      const handleStart = async () => {
+        dispatch({ type: 'UPDATE_CONFIG', payload: config });
+
+        if (supabaseApi.isConnected && session.id) {
+          // Update session in DB to active
+          await supabaseApi.updateSessionInDB(session.id, {
+            status: 'active',
+            current_question: 0,
+            config
+          });
+        }
+
+        dispatch({ type: 'START_SESSION' });
+      };
+
+      const handleAddSimulated = (count) => { dispatch({ type: 'ADD_SIMULATED_PARTICIPANTS', payload: { count } }); };
+
+      return (
+        <div className="scanline" style={{ minHeight: '100vh', padding: '24px' }}>
+          <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '48px' }}>
+              <div className="animate-fadeInUp">
+                <h1 style={{ fontSize: '36px', fontWeight: '900', marginBottom: '8px' }}>PANEL DE CONTROL</h1>
+                <p style={{ color: '#666' }}>Configura antes de comenzar</p>
+              </div>
+              <button onClick={() => dispatch({ type: 'RESET' })} style={{ background: 'transparent', border: 'none', color: '#555', fontSize: '24px', cursor: 'pointer' }}>✕</button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
+              <div style={{ border: '2px solid #333', padding: '32px', borderRadius: '16px' }}>
+                <div style={{ fontSize: '12px', color: '#666', letterSpacing: '2px', marginBottom: '16px' }}>CÓDIGO DE ACCESO</div>
+                <div style={{ background: '#fff', color: '#000', padding: '32px', textAlign: 'center', borderRadius: '12px', marginBottom: '16px' }}>
+                  <div style={{ fontSize: '40px', fontWeight: '900', fontFamily: 'monospace', letterSpacing: '4px' }}>{session.code}</div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+                  <QRCodeComponent value={`${window.location.origin}?code=${session.code}`} size={180} />
+                </div>
+                <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+                  <p style={{ color: '#888', fontSize: '12px', marginBottom: '8px' }}>O entra en:</p>
+                  <div style={{
+                    background: '#111',
+                    border: '1px solid #333',
+                    borderRadius: '8px',
+                    padding: '12px 16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '8px'
+                  }}>
+                    <code style={{
+                      color: '#34d399',
+                      fontSize: '11px',
+                      wordBreak: 'break-all',
+                      flex: 1,
+                      textAlign: 'left'
+                    }}>
+                      {window.location.origin}?code={session.code}
+                    </code>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(`${window.location.origin}?code=${session.code}`);
+                        alert('URL copiada!');
+                      }}
+                      style={{
+                        background: '#333',
+                        border: 'none',
+                        color: '#fff',
+                        padding: '6px 10px',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '12px',
+                        flexShrink: 0
+                      }}
+                    >
+                      📋 Copiar
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ border: '2px solid #333', padding: '32px', borderRadius: '16px' }}>
+                <div style={{ fontSize: '12px', color: '#666', letterSpacing: '2px', marginBottom: '16px' }}>PARTICIPANTES</div>
+                <div style={{ textAlign: 'center', padding: '32px 0' }}>
+                  <div className="gradient-text" style={{ fontSize: '72px', fontWeight: '900', fontFamily: 'monospace' }}>{String(participants.length).padStart(3, '0')}</div>
+                  <div style={{ color: '#666', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                    <span className="animate-pulse" style={{ display: 'inline-block', width: '8px', height: '8px', background: '#34d399', borderRadius: '50%' }}></span>
+                    conectados
+                  </div>
+                </div>
+                <div style={{ borderTop: '1px solid #333', paddingTop: '24px', marginTop: '24px' }}>
+                  <div style={{ fontSize: '12px', color: '#555', marginBottom: '12px', letterSpacing: '2px' }}>SIMULADOR</div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    {[5, 10, 25, 50].map(n => (
+                      <button key={n} onClick={() => handleAddSimulated(n)} className="hover-lift" style={{ flex: 1, padding: '12px', border: '1px solid #333', background: 'transparent', color: '#fff', fontFamily: 'monospace', cursor: 'pointer', borderRadius: '8px' }}>+{n}</button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ border: '2px solid #333', padding: '32px', borderRadius: '16px', gridColumn: 'span 2' }}>
+                <div style={{ fontSize: '12px', color: '#666', letterSpacing: '2px', marginBottom: '24px' }}>CONFIGURACIÓN</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '32px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '16px', cursor: 'pointer' }}>
+                    <div onClick={() => setConfig({ ...config, autoAdvance: !config.autoAdvance })} style={{ width: '24px', height: '24px', border: `2px solid ${config.autoAdvance ? '#fff' : '#333'}`, background: config.autoAdvance ? '#fff' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '6px', cursor: 'pointer' }}>
+                      {config.autoAdvance && <span style={{ color: '#000' }}>✓</span>}
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 'bold' }}>Avance automático</div>
+                      <div style={{ fontSize: '14px', color: '#666' }}>Las preguntas avanzan solas</div>
+                    </div>
+                  </label>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <span style={{ fontWeight: 'bold' }}>Segundos por pregunta</span>
+                      <span style={{ fontFamily: 'monospace', color: '#888' }}>{config.secondsPerQuestion}s</span>
+                    </div>
+                    <input type="range" min="5" max="30" value={config.secondsPerQuestion} onChange={(e) => setConfig({ ...config, secondsPerQuestion: parseInt(e.target.value) })} style={{ width: '100%', accentColor: '#fff' }} />
+                  </div>
+                </div>
+                <div className="glass" style={{ marginTop: '32px', padding: '16px', borderRadius: '12px' }}>
+                  <span style={{ color: '#666' }}>Duración estimada: </span>
+                  <span style={{ fontWeight: 'bold', fontFamily: 'monospace', fontSize: '20px' }}>{Math.ceil((QUESTIONS.length * config.secondsPerQuestion) / 60)} MIN</span>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ marginTop: '48px', textAlign: 'center' }}>
+              <button onClick={handleStart} disabled={participants.length === 0} className="touch-feedback hover-lift" style={{ padding: '24px 64px', background: participants.length === 0 ? '#333' : '#fff', color: participants.length === 0 ? '#666' : '#000', fontSize: '20px', fontWeight: '900', border: 'none', cursor: participants.length === 0 ? 'not-allowed' : 'pointer', borderRadius: '16px' }}>
+                {participants.length === 0 ? '⏳ ESPERANDO PARTICIPANTES...' : '🚀 COMENZAR VOTACIÓN →'}
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function FacilitatorLive({ state, dispatch, supabaseApi }) {
+      const { session, participants, votes } = state;
+      const question = QUESTIONS[session.currentQuestion];
+      const [timerKey, setTimerKey] = useState(0);
+      const [isPaused, setIsPaused] = useState(false);
+
+      const currentVotes = { auto: 0, augmented: 0, human: 0 };
+      let totalVotes = 0;
+      participants.forEach(p => { const vote = votes[`${p.id}-${session.currentQuestion}`]; if (vote) { currentVotes[vote]++; totalVotes++; } });
+
+      const advanceQuestion = async () => {
+        const nextQuestion = session.currentQuestion + 1;
+        if (supabaseApi.isConnected && session.id) {
+          if (nextQuestion >= QUESTIONS.length) {
+            await supabaseApi.updateSessionInDB(session.id, { status: 'finished' });
+          } else {
+            await supabaseApi.updateSessionInDB(session.id, { current_question: nextQuestion });
+          }
+        }
+        dispatch({ type: 'SIMULATE_VOTES', payload: { questionIndex: session.currentQuestion } });
+        dispatch({ type: 'ADVANCE_QUESTION' });
+        setTimerKey(k => k + 1);
+      };
+
+      const handleTimeUp = useCallback(() => {
+        setTimeout(() => advanceQuestion(), 1000);
+      }, [session.currentQuestion, session.id]);
+
+      const handleManualAdvance = () => {
+        advanceQuestion();
+      };
+
+      const handleEndSession = async () => {
+        if (supabaseApi.isConnected && session.id) {
+          await supabaseApi.updateSessionInDB(session.id, { status: 'finished' });
+        }
+        dispatch({ type: 'END_SESSION' });
+      };
+
+      useEffect(() => { setTimerKey(k => k + 1); setIsPaused(false); }, [session.currentQuestion]);
+
+      return (
+        <div className="scanline" style={{ minHeight: '100vh', padding: '24px' }}>
+          <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span className={isPaused ? '' : 'animate-pulse'} style={{ display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%', background: isPaused ? '#fbbf24' : '#ef4444' }}></span>
+                  <span style={{ fontSize: '14px', fontWeight: 'bold', letterSpacing: '2px' }}>{isPaused ? 'PAUSADO' : 'EN VIVO'}</span>
+                </div>
+                <span style={{ color: '#666', fontFamily: 'monospace' }}>{String(participants.length).padStart(3, '0')} participantes</span>
+              </div>
+              <button onClick={handleEndSession} style={{ padding: '8px 16px', border: '1px solid #333', background: 'transparent', color: '#fff', cursor: 'pointer', borderRadius: '8px' }}>FINALIZAR ✕</button>
+            </div>
+
+            <div style={{ marginBottom: '32px' }}><PixelProgressBar current={session.currentQuestion} total={QUESTIONS.length} /></div>
+
+            <div className="glass animate-fadeInUp" key={session.currentQuestion} style={{ padding: '40px', marginBottom: '32px', borderRadius: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                <span style={{ fontSize: '32px' }}>{BLOCKS[question.block].emoji}</span>
+                <span style={{ fontSize: '14px', fontWeight: 'bold', letterSpacing: '2px', color: BLOCKS[question.block].color }}>{BLOCKS[question.block].name}</span>
+              </div>
+              <h2 style={{ fontSize: '36px', fontWeight: '900', lineHeight: 1.3 }}>{question.text}</h2>
+            </div>
+
+            <div style={{ border: '2px solid #333', padding: '32px', marginBottom: '32px', borderRadius: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                <span style={{ fontSize: '12px', color: '#666', letterSpacing: '2px' }}>RESULTADOS EN VIVO</span>
+                <span style={{ fontFamily: 'monospace', color: '#888', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span className="animate-pulse" style={{ display: 'inline-block', width: '8px', height: '8px', background: '#34d399', borderRadius: '50%' }}></span>
+                  {totalVotes}/{participants.length} votos
+                </span>
+              </div>
+              <ResultBar type="auto" count={currentVotes.auto} total={totalVotes || 1} showCount />
+              <ResultBar type="augmented" count={currentVotes.augmented} total={totalVotes || 1} showCount />
+              <ResultBar type="human" count={currentVotes.human} total={totalVotes || 1} showCount />
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '24px', border: '2px solid #333', padding: '24px', borderRadius: '16px' }}>
+              <div style={{ flex: 1 }}>
+                {session.config.autoAdvance ? (
+                  <PixelTimer key={timerKey} seconds={session.config.secondsPerQuestion} maxSeconds={session.config.secondsPerQuestion} onComplete={handleTimeUp} isPaused={isPaused} />
+                ) : (
+                  <div style={{ textAlign: 'center', color: '#666' }}>Modo manual</div>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                {session.config.autoAdvance && (
+                  <button onClick={() => setIsPaused(!isPaused)} className="hover-lift" style={{ padding: '16px 24px', border: `1px solid ${isPaused ? '#34d399' : '#333'}`, background: 'transparent', color: isPaused ? '#34d399' : '#fff', fontWeight: 'bold', cursor: 'pointer', borderRadius: '12px' }}>
+                    {isPaused ? '▶ REANUDAR' : '⏸ PAUSAR'}
+                  </button>
+                )}
+                <button onClick={handleManualAdvance} className="hover-lift" style={{ padding: '16px 32px', background: '#fff', color: '#000', fontWeight: '900', border: 'none', cursor: 'pointer', borderRadius: '12px' }}>
+                  {session.currentQuestion < QUESTIONS.length - 1 ? 'SIGUIENTE →' : 'VER RESULTADOS →'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function FacilitatorResults({ state, dispatch }) {
+      const { participants, votes } = state;
+      const [viewMode, setViewMode] = useState('consensus');
+
+      const resultsPerQuestion = QUESTIONS.map((q, qIndex) => {
+        const counts = { auto: 0, augmented: 0, human: 0, total: 0 };
+        participants.forEach(p => { const vote = votes[`${p.id}-${qIndex}`]; if (vote) { counts[vote]++; counts.total++; } });
+        const max = Math.max(counts.auto, counts.augmented, counts.human);
+        const consensus = counts.total > 0 ? max / counts.total : 0;
+        const winner = counts.auto >= counts.augmented && counts.auto >= counts.human ? 'auto' : counts.augmented >= counts.human ? 'augmented' : 'human';
+        return { question: q, counts, consensus, winner };
+      });
+
+      const sortedByConsensus = [...resultsPerQuestion].sort((a, b) => b.consensus - a.consensus);
+
+      const resultsByBlock = {};
+      Object.keys(BLOCKS).forEach(block => { resultsByBlock[block] = { auto: 0, augmented: 0, human: 0, total: 0 }; });
+      resultsPerQuestion.forEach(r => {
+        resultsByBlock[r.question.block].auto += r.counts.auto;
+        resultsByBlock[r.question.block].augmented += r.counts.augmented;
+        resultsByBlock[r.question.block].human += r.counts.human;
+        resultsByBlock[r.question.block].total += r.counts.total;
+      });
+
+      const handleExport = () => {
+        let csv = 'Pregunta,Bloque,Automatizable,Aumentada,Humana,Total,Consenso\n';
+        resultsPerQuestion.forEach(r => { csv += `"${r.question.text}",${r.question.block},${r.counts.auto},${r.counts.augmented},${r.counts.human},${r.counts.total},${Math.round(r.consensus * 100)}%\n`; });
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'triageai-resultados.csv'; a.click();
+      };
+
+      return (
+        <div className="scanline" style={{ minHeight: '100vh', padding: '24px' }}>
+          <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '48px' }}>
+              <div className="animate-fadeInUp">
+                <h1 className="gradient-text" style={{ fontSize: '48px', fontWeight: '900', marginBottom: '8px' }}>RESULTADOS</h1>
+                <p style={{ color: '#666', fontFamily: 'monospace' }}>{String(participants.length).padStart(3, '0')} participantes · {QUESTIONS.length} preguntas</p>
+              </div>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button onClick={handleExport} className="hover-lift" style={{ padding: '12px 20px', border: '1px solid #333', background: 'transparent', color: '#fff', cursor: 'pointer', borderRadius: '8px' }}>📊 CSV</button>
+                <button onClick={() => dispatch({ type: 'RESET' })} className="hover-lift" style={{ padding: '12px 20px', background: '#fff', color: '#000', fontWeight: 'bold', border: 'none', cursor: 'pointer', borderRadius: '8px' }}>NUEVA SESIÓN</button>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '32px' }}>
+              {[['consensus', '📊 CONSENSO'], ['heatmap', '🗺️ BLOQUES']].map(([id, label]) => (
+                <button key={id} onClick={() => setViewMode(id)} className="hover-lift" style={{ padding: '12px 24px', background: viewMode === id ? '#fff' : 'transparent', color: viewMode === id ? '#000' : '#fff', fontWeight: 'bold', border: viewMode === id ? 'none' : '1px solid #333', cursor: 'pointer', borderRadius: '8px' }}>{label}</button>
+              ))}
+            </div>
+
+            {viewMode === 'consensus' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                <div style={{ border: '2px solid #333', padding: '32px', borderRadius: '16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#666', letterSpacing: '2px', marginBottom: '24px' }}>
+                    <span style={{ color: '#34d399' }}>●</span> ALTO CONSENSO (&gt;70%)
+                  </div>
+                  {sortedByConsensus.filter(r => r.consensus >= 0.7).map((r, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '24px', padding: '20px', border: '1px solid #333', borderRadius: '12px', marginBottom: '12px' }}>
+                      <span style={{ fontSize: '36px' }}>{VOTE_TYPES[r.winner].pixel}</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 'bold' }}>{r.question.text}</div>
+                        <div style={{ fontSize: '14px', color: '#666' }}>{BLOCKS[r.question.block].emoji} {BLOCKS[r.question.block].name}</div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: '32px', fontWeight: '900', fontFamily: 'monospace', color: VOTE_TYPES[r.winner].color }}>{Math.round(r.consensus * 100)}%</div>
+                        <div style={{ fontSize: '12px', color: '#666' }}>{VOTE_TYPES[r.winner].label}</div>
+                      </div>
+                    </div>
+                  ))}
+                  {sortedByConsensus.filter(r => r.consensus >= 0.7).length === 0 && <div style={{ color: '#555', textAlign: 'center', padding: '32px' }}>Sin consenso alto</div>}
+                </div>
+
+                <div style={{ border: '2px solid #333', padding: '32px', borderRadius: '16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#666', letterSpacing: '2px', marginBottom: '24px' }}>
+                    <span style={{ color: '#fbbf24' }}>●</span> DIVISIÓN (&lt;50%)
+                  </div>
+                  {sortedByConsensus.filter(r => r.consensus < 0.5).map((r, i) => (
+                    <div key={i} style={{ padding: '20px', border: '1px solid #333', borderRadius: '12px', marginBottom: '12px' }}>
+                      <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>{r.question.text}</div>
+                      <div style={{ display: 'flex', height: '32px', borderRadius: '8px', overflow: 'hidden' }}>
+                        <div style={{ width: `${(r.counts.auto / r.counts.total) * 100}%`, background: 'linear-gradient(90deg, #fff 0%, #ccc 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', fontSize: '12px', fontWeight: 'bold' }}>{Math.round((r.counts.auto / r.counts.total) * 100) > 15 && `${Math.round((r.counts.auto / r.counts.total) * 100)}%`}</div>
+                        <div style={{ width: `${(r.counts.augmented / r.counts.total) * 100}%`, background: 'linear-gradient(90deg, #a78bfa 0%, #7c3aed 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '12px', fontWeight: 'bold' }}>{Math.round((r.counts.augmented / r.counts.total) * 100) > 15 && `${Math.round((r.counts.augmented / r.counts.total) * 100)}%`}</div>
+                        <div style={{ width: `${(r.counts.human / r.counts.total) * 100}%`, background: 'linear-gradient(90deg, #f97316 0%, #c2410c 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '12px', fontWeight: 'bold' }}>{Math.round((r.counts.human / r.counts.total) * 100) > 15 && `${Math.round((r.counts.human / r.counts.total) * 100)}%`}</div>
+                      </div>
+                    </div>
+                  ))}
+                  {sortedByConsensus.filter(r => r.consensus < 0.5).length === 0 && <div style={{ color: '#555', textAlign: 'center', padding: '32px' }}>Buen consenso en todo</div>}
+                </div>
+              </div>
+            )}
+
+            {viewMode === 'heatmap' && (
+              <div style={{ border: '2px solid #333', padding: '32px', borderRadius: '16px' }}>
+                <div style={{ fontSize: '12px', color: '#666', letterSpacing: '2px', marginBottom: '32px' }}>RESULTADOS POR BLOQUE</div>
+                {Object.entries(BLOCKS).map(([blockId, blockInfo]) => {
+                  const data = resultsByBlock[blockId];
+                  const total = data.total || 1;
+                  return (
+                    <div key={blockId} style={{ marginBottom: '32px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                        <span style={{ fontSize: '28px' }}>{blockInfo.emoji}</span>
+                        <span style={{ fontWeight: 'bold', letterSpacing: '2px', color: blockInfo.color }}>{blockInfo.name}</span>
+                      </div>
+                      <div style={{ display: 'flex', height: '48px', borderRadius: '12px', overflow: 'hidden' }}>
+                        <div style={{ width: `${(data.auto / total) * 100}%`, background: 'linear-gradient(90deg, #fff 0%, #ccc 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', fontWeight: 'bold' }}>{Math.round((data.auto / total) * 100) > 10 && `🤖 ${Math.round((data.auto / total) * 100)}%`}</div>
+                        <div style={{ width: `${(data.augmented / total) * 100}%`, background: 'linear-gradient(90deg, #a78bfa 0%, #7c3aed 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold' }}>{Math.round((data.augmented / total) * 100) > 10 && `🤝 ${Math.round((data.augmented / total) * 100)}%`}</div>
+                        <div style={{ width: `${(data.human / total) * 100}%`, background: 'linear-gradient(90deg, #f97316 0%, #c2410c 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold' }}>{Math.round((data.human / total) * 100) > 10 && `✋ ${Math.round((data.human / total) * 100)}%`}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div style={{ marginTop: '48px', border: '2px solid #fff', padding: '48px', textAlign: 'center', borderRadius: '20px' }}>
+              <div style={{ fontSize: '12px', color: '#666', letterSpacing: '2px', marginBottom: '24px' }}>LA PREGUNTA INCÓMODA</div>
+              <p style={{ fontSize: '20px', fontWeight: 'bold', marginBottom: '16px' }}>"Mirad las tareas que habéis marcado como automatizables."</p>
+              <p className="gradient-text" style={{ fontSize: '36px', fontWeight: '900', marginBottom: '24px' }}>¿Qué porcentaje de vuestra última semana fue eso?</p>
+              <p style={{ color: '#666', maxWidth: '500px', margin: '0 auto' }}>Ese es el porcentaje de vuestro trabajo que está en riesgo si no os movéis hacia arriba.</p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================
+    // APP
+    // ============================================
+    function App() {
+      const [state, dispatch] = useReducer(reducer, initialState);
+      const supabaseApi = useSupabaseRealtime(state, dispatch);
+
+      // Handle session status changes
+      useEffect(() => {
+        if (state.session.status === 'active' && state.view === 'participant-waiting') {
+          dispatch({ type: 'SET_VIEW', payload: 'participant-voting' });
+        }
+        if (state.session.status === 'finished') {
+          if (state.view.startsWith('facilitator') && state.view !== 'facilitator-results') {
+            dispatch({ type: 'SET_VIEW', payload: 'facilitator-results' });
+          }
+          if (state.view.startsWith('participant') && state.view !== 'participant-results') {
+            dispatch({ type: 'SET_VIEW', payload: 'participant-results' });
+          }
+        }
+      }, [state.session.status, state.view]);
+
+      // Cleanup subscriptions on unmount
+      useEffect(() => {
+        return () => supabaseApi.cleanup();
+      }, []);
+
+      switch (state.view) {
+        case 'landing': return <LandingPage dispatch={dispatch} state={state} supabaseApi={supabaseApi} />;
+        case 'participant-waiting': return <ParticipantWaiting session={state.session} participantCount={state.participants.length} dispatch={dispatch} supabaseApi={supabaseApi} />;
+        case 'participant-voting': return <ParticipantVoting state={state} dispatch={dispatch} supabaseApi={supabaseApi} />;
+        case 'participant-results': return <ParticipantResults state={state} />;
+        case 'facilitator-setup': return <FacilitatorSetup state={state} dispatch={dispatch} supabaseApi={supabaseApi} />;
+        case 'facilitator-live': return <FacilitatorLive state={state} dispatch={dispatch} supabaseApi={supabaseApi} />;
+        case 'facilitator-results': return <FacilitatorResults state={state} dispatch={dispatch} />;
+        default: return <LandingPage dispatch={dispatch} state={state} supabaseApi={supabaseApi} />;
+      }
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
