@@ -1117,19 +1117,6 @@
       const prevQuestionRef = useRef(session.currentQuestion);
       const currentRound = getCurrentRound(session.currentQuestion);
 
-      // Show round summary if needed
-      if (session.showRoundSummary && session.completedRound) {
-        return (
-          <RoundSummary
-            roundNumber={session.completedRound}
-            votes={votes}
-            participants={participants}
-            onContinue={() => dispatch({ type: 'CONTINUE_FROM_SUMMARY' })}
-            isParticipant={true}
-          />
-        );
-      }
-
       // Reset vote state when question changes
       useEffect(() => {
         if (prevQuestionRef.current !== session.currentQuestion) {
@@ -1178,6 +1165,19 @@
 
       // Calculate progress within current round
       const questionInRound = (session.currentQuestion % QUESTIONS_PER_ROUND) + 1;
+
+      // Show round summary if needed (MUST be after all hooks)
+      if (session.showRoundSummary && session.completedRound) {
+        return (
+          <RoundSummary
+            roundNumber={session.completedRound}
+            votes={votes}
+            participants={participants}
+            onContinue={() => dispatch({ type: 'CONTINUE_FROM_SUMMARY' })}
+            isParticipant={true}
+          />
+        );
+      }
 
       return (
         <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -1443,19 +1443,6 @@
       const [isPaused, setIsPaused] = useState(false);
       const currentRound = getCurrentRound(session.currentQuestion);
 
-      // Show round summary if needed
-      if (session.showRoundSummary && session.completedRound) {
-        return (
-          <RoundSummary
-            roundNumber={session.completedRound}
-            votes={votes}
-            participants={participants}
-            onContinue={() => dispatch({ type: 'CONTINUE_FROM_SUMMARY' })}
-            isParticipant={false}
-          />
-        );
-      }
-
       const currentVotes = { auto: 0, augmented: 0, human: 0 };
       let totalVotes = 0;
       participants.forEach(p => { const vote = votes[`${p.id}-${session.currentQuestion}`]; if (vote) { currentVotes[vote]++; totalVotes++; } });
@@ -1493,6 +1480,19 @@
 
       // Calculate progress within current round
       const questionInRound = (session.currentQuestion % QUESTIONS_PER_ROUND) + 1;
+
+      // Show round summary if needed (MUST be after all hooks)
+      if (session.showRoundSummary && session.completedRound) {
+        return (
+          <RoundSummary
+            roundNumber={session.completedRound}
+            votes={votes}
+            participants={participants}
+            onContinue={() => dispatch({ type: 'CONTINUE_FROM_SUMMARY' })}
+            isParticipant={false}
+          />
+        );
+      }
 
       return (
         <div className="scanline" style={{ minHeight: '100vh', padding: '24px' }}>
