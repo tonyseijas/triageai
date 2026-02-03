@@ -7,25 +7,8 @@
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js"></script>
-  <script>
-    // Supabase config - will be initialized after library loads
-    var SUPABASE_URL = 'https://fkylhefiqllvpyldbsvl.supabase.co';
-    var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZreWxoZWZpcWxsdnB5bGRic3ZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjg3MzEsImV4cCI6MjA4NTY0NDczMX0.mPgzifo5jAKioeds-Zmy08bPH-64qV7PqvRMncxRL9E';
-    var supabaseClient = null;
-  </script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script>
-    // Initialize Supabase AFTER the library script has loaded
-    (function initSupabase() {
-      if (window.supabase && window.supabase.createClient) {
-        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        console.log('Supabase initialized successfully!', supabaseClient);
-      } else {
-        console.error('Supabase library not loaded!');
-      }
-    })();
-  </script>
   <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
     * {
@@ -36,30 +19,10 @@
     }
 
     body {
-      background: linear-gradient(160deg, #1a1a2e 0%, #16213e 25%, #1a1a2e 50%, #2d2d44 75%, #8b7355 100%);
-      background-attachment: fixed;
+      background: #000;
       color: #fff;
       min-height: 100vh;
       overflow-x: hidden;
-    }
-
-    /* Warm gradient overlay */
-    body::before {
-      content: '';
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: radial-gradient(ellipse at bottom right, rgba(180, 140, 80, 0.3) 0%, transparent 60%),
-                  radial-gradient(ellipse at top left, rgba(30, 40, 60, 0.8) 0%, transparent 50%);
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    #root {
-      position: relative;
-      z-index: 1;
     }
 
     @keyframes fadeInUp {
@@ -138,35 +101,16 @@
     }
 
     .glass {
-      background: rgba(40, 44, 60, 0.6);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 20px;
-    }
-
-    .glass-card {
-      background: rgba(35, 39, 55, 0.85);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      border-radius: 24px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
     }
 
     .gradient-text {
-      background: linear-gradient(135deg, #fff 0%, #c9b896 100%);
+      background: linear-gradient(135deg, #fff 0%, #888 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
-    }
-
-    .accent-text {
-      color: #c9a227;
-    }
-
-    .gold-accent {
-      color: #d4af37;
     }
 
     .touch-feedback:active { transform: scale(0.98); }
@@ -197,11 +141,20 @@
     const { useState, useEffect, useReducer, useCallback, useRef } = React;
 
     // ============================================
-    // SUPABASE CLIENT (initialized in head script)
+    // SUPABASE CONFIG (Replace with your credentials)
     // ============================================
-    // Use the client initialized before Babel runs
-    const supabase = window.supabaseClient;
-    console.log('Supabase client in React:', supabase ? 'CONNECTED' : 'NOT AVAILABLE');
+    const SUPABASE_URL = 'https://fkylhefiqllvpyldbsvl.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZreWxoZWZpcWxsdnB5bGRic3ZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjg3MzEsImV4cCI6MjA4NTY0NDczMX0.mPgzifo5jAKioeds-Zmy08bPH-64qV7PqvRMncxRL9E';
+
+    // Supabase client (optional - works without it in demo mode)
+    let supabase = null;
+    try {
+      if (window.supabase && SUPABASE_URL !== 'https://your-project.supabase.co') {
+        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      }
+    } catch (e) {
+      console.log('Supabase not configured - running in demo mode');
+    }
 
     // ============================================
     // DATOS
@@ -242,56 +195,21 @@
       coordinacion: { name: 'COORDINACIÓN', tag: '04', color: '#a78bfa', emoji: '🤝' },
     };
 
-    // Fixed session code - always the same for simplicity
-    const FIXED_SESSION_CODE = 'TRIAGEAI';
-    const FULL_URL = 'https://triageai-git-main-tony-seijas-projects.vercel.app';
-    // Static QR code image (pre-generated for the URL above)
-    const QR_IMAGE_URL = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://triageai-git-main-tony-seijas-projects.vercel.app';
-
-    // LocalStorage key for shared session state
-    const SESSION_STORAGE_KEY = 'triageai_session';
-
-    const generateSessionCode = () => FIXED_SESSION_CODE;
+    const generateSessionCode = () => {
+      // Generate 3-character alphanumeric code (e.g., "A7K", "B3X")
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let code = '';
+      for (let i = 0; i < 3; i++) {
+        code += chars[Math.floor(Math.random() * chars.length)];
+      }
+      return code;
+    };
 
     const triggerHaptic = (type = 'light') => {
       if ('vibrate' in navigator) {
         const patterns = { light: [10], medium: [20], heavy: [30], success: [10, 50, 10] };
         navigator.vibrate(patterns[type] || patterns.light);
       }
-    };
-
-    // Shared session sync via localStorage (for multi-device on same network)
-    const saveSessionToStorage = (sessionData) => {
-      try {
-        localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({
-          ...sessionData,
-          updatedAt: Date.now()
-        }));
-      } catch (e) {
-        console.log('Could not save session to storage');
-      }
-    };
-
-    const loadSessionFromStorage = () => {
-      try {
-        const data = localStorage.getItem(SESSION_STORAGE_KEY);
-        if (data) {
-          const parsed = JSON.parse(data);
-          // Session is valid if updated in last 2 hours
-          if (Date.now() - parsed.updatedAt < 2 * 60 * 60 * 1000) {
-            return parsed;
-          }
-        }
-      } catch (e) {
-        console.log('Could not load session from storage');
-      }
-      return null;
-    };
-
-    const clearSessionStorage = () => {
-      try {
-        localStorage.removeItem(SESSION_STORAGE_KEY);
-      } catch (e) {}
     };
 
     // ============================================
@@ -307,65 +225,31 @@
     };
 
     function reducer(state, action) {
-      let newState;
       switch (action.type) {
         case 'CREATE_SESSION':
-          newState = { ...state, session: { ...state.session, id: action.payload.id, code: action.payload.code, status: 'waiting' }, view: 'facilitator-setup' };
-          saveSessionToStorage({ session: newState.session, participants: [], votes: {} });
-          return newState;
+          return { ...state, session: { ...state.session, id: action.payload.id, code: action.payload.code, status: 'waiting' }, view: 'facilitator-setup' };
         case 'JOIN_SESSION':
-          // Load session from storage to get current state
-          const storedSession = loadSessionFromStorage();
-          const sessionStatus = storedSession?.session?.status || 'waiting';
-          const sessionData = storedSession?.session || state.session;
-          const existingParticipants = storedSession?.participants || [];
-          const existingVotes = storedSession?.votes || {};
-
-          const newParticipant = { id: `p-${Date.now()}`, alias: action.payload.alias || `USER_${String(existingParticipants.length + 1).padStart(3, '0')}`, joinedAt: new Date() };
-          const updatedParticipants = [...existingParticipants, newParticipant];
-
-          newState = {
-            ...state,
-            session: { ...sessionData, status: sessionStatus },
-            participants: updatedParticipants,
-            votes: existingVotes,
-            currentParticipant: newParticipant,
-            view: sessionStatus === 'active' ? 'participant-voting' : 'participant-waiting'
-          };
-          saveSessionToStorage({ session: newState.session, participants: updatedParticipants, votes: existingVotes });
-          return newState;
+          const newParticipant = { id: `p-${Date.now()}`, alias: action.payload.alias || `USER_${String(state.participants.length + 1).padStart(3, '0')}`, joinedAt: new Date() };
+          return { ...state, participants: [...state.participants, newParticipant], currentParticipant: newParticipant, view: state.session.status === 'active' ? 'participant-voting' : 'participant-waiting' };
         case 'START_SESSION':
-          newState = { ...state, session: { ...state.session, status: 'active', currentQuestion: 0 }, view: state.view === 'facilitator-setup' ? 'facilitator-live' : 'participant-voting' };
-          saveSessionToStorage({ session: newState.session, participants: state.participants, votes: state.votes });
-          return newState;
+          return { ...state, session: { ...state.session, status: 'active', currentQuestion: 0 }, view: state.view === 'facilitator-setup' ? 'facilitator-live' : 'participant-voting' };
         case 'ADVANCE_QUESTION':
           const nextQ = state.session.currentQuestion + 1;
-          if (nextQ >= QUESTIONS.length) {
-            newState = { ...state, session: { ...state.session, status: 'finished' }, view: state.view.startsWith('facilitator') ? 'facilitator-results' : 'participant-results' };
-          } else {
-            newState = { ...state, session: { ...state.session, currentQuestion: nextQ } };
-          }
-          saveSessionToStorage({ session: newState.session, participants: state.participants, votes: state.votes });
-          return newState;
+          if (nextQ >= QUESTIONS.length) return { ...state, session: { ...state.session, status: 'finished' }, view: state.view.startsWith('facilitator') ? 'facilitator-results' : 'participant-results' };
+          return { ...state, session: { ...state.session, currentQuestion: nextQ } };
         case 'VOTE':
-          const updatedVotes = { ...state.votes, [`${action.payload.participantId}-${action.payload.questionIndex}`]: action.payload.vote };
-          saveSessionToStorage({ session: state.session, participants: state.participants, votes: updatedVotes });
-          return { ...state, votes: updatedVotes };
+          return { ...state, votes: { ...state.votes, [`${action.payload.participantId}-${action.payload.questionIndex}`]: action.payload.vote } };
         case 'UPDATE_CONFIG':
-          newState = { ...state, session: { ...state.session, config: { ...state.session.config, ...action.payload } } };
-          saveSessionToStorage({ session: newState.session, participants: state.participants, votes: state.votes });
-          return newState;
+          return { ...state, session: { ...state.session, config: { ...state.session.config, ...action.payload } } };
         case 'ADD_SIMULATED_PARTICIPANTS':
           const simulated = Array.from({ length: action.payload.count }, (_, i) => ({ id: `sim-${Date.now()}-${i}`, alias: `USER_${String(state.participants.length + i + 1).padStart(3, '0')}`, joinedAt: new Date(), isSimulated: true }));
-          const withSimulated = [...state.participants, ...simulated];
-          saveSessionToStorage({ session: state.session, participants: withSimulated, votes: state.votes });
-          return { ...state, participants: withSimulated };
+          return { ...state, participants: [...state.participants, ...simulated] };
         case 'SIMULATE_VOTES':
-          const simulatedVotes = { ...state.votes };
+          const newVotes = { ...state.votes };
           state.participants.forEach(p => {
             if (p.isSimulated) {
               const voteKey = `${p.id}-${action.payload.questionIndex}`;
-              if (!simulatedVotes[voteKey]) {
+              if (!newVotes[voteKey]) {
                 const question = QUESTIONS[action.payload.questionIndex];
                 const rand = Math.random();
                 let vote;
@@ -373,12 +257,11 @@
                 else if (question.block === 'research') vote = rand < 0.3 ? 'auto' : rand < 0.7 ? 'augmented' : 'human';
                 else if (question.block === 'estrategia') vote = rand < 0.15 ? 'auto' : rand < 0.5 ? 'augmented' : 'human';
                 else vote = rand < 0.05 ? 'auto' : rand < 0.25 ? 'augmented' : 'human';
-                simulatedVotes[voteKey] = vote;
+                newVotes[voteKey] = vote;
               }
             }
           });
-          saveSessionToStorage({ session: state.session, participants: state.participants, votes: simulatedVotes });
-          return { ...state, votes: simulatedVotes };
+          return { ...state, votes: newVotes };
         case 'SET_VIEW':
           return { ...state, view: action.payload };
         case 'SET_ERROR':
@@ -386,11 +269,8 @@
         case 'CLEAR_ERROR':
           return { ...state, error: null };
         case 'END_SESSION':
-          newState = { ...state, session: { ...state.session, status: 'finished' }, view: state.view.startsWith('facilitator') ? 'facilitator-results' : 'participant-results' };
-          saveSessionToStorage({ session: newState.session, participants: state.participants, votes: state.votes });
-          return newState;
+          return { ...state, session: { ...state.session, status: 'finished' }, view: state.view.startsWith('facilitator') ? 'facilitator-results' : 'participant-results' };
         case 'RESET':
-          clearSessionStorage();
           return initialState;
         case 'SYNC_SESSION':
           return { ...state, session: { ...state.session, ...action.payload } };
@@ -858,14 +738,62 @@
     // VISTAS
     // ============================================
     function LandingPage({ dispatch, state, supabaseApi }) {
+      const [code, setCode] = useState('');
       const [alias, setAlias] = useState('');
       const [mode, setMode] = useState(null);
       const [isLoading, setIsLoading] = useState(false);
 
       const handleJoin = async () => {
+        if (!code.trim()) return;
         setIsLoading(true);
-        // Join session directly with fixed code
-        dispatch({ type: 'JOIN_SESSION', payload: { code: FIXED_SESSION_CODE, alias: alias.trim() } });
+
+        if (supabaseApi.isConnected) {
+          // Real-time mode: find session in DB
+          const session = await supabaseApi.findSessionByCode(code.trim());
+          if (!session) {
+            dispatch({ type: 'SET_ERROR', payload: 'Sesión no encontrada. Verifica el código.' });
+            setIsLoading(false);
+            return;
+          }
+          if (session.status === 'finished') {
+            dispatch({ type: 'SET_ERROR', payload: 'Esta sesión ya ha terminado.' });
+            setIsLoading(false);
+            return;
+          }
+
+          // Create participant
+          const participantId = `p-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+          const participantAlias = alias.trim() || `USER_${Date.now().toString().slice(-4)}`;
+          await supabaseApi.addParticipantToDB(session.id, participantId, participantAlias);
+
+          // Subscribe to updates
+          supabaseApi.subscribeToSession(session.id);
+          supabaseApi.subscribeToParticipants(session.id);
+          supabaseApi.subscribeToVotes(session.id);
+
+          // Load existing data
+          const participants = await supabaseApi.loadParticipants(session.id);
+          const votes = await supabaseApi.loadVotes(session.id);
+
+          dispatch({ type: 'SET_SESSION_ID', payload: session.id });
+          dispatch({ type: 'SYNC_SESSION', payload: {
+            id: session.id,
+            code: session.code,
+            status: session.status,
+            currentQuestion: session.current_question,
+            config: session.config
+          }});
+          dispatch({ type: 'SYNC_PARTICIPANTS', payload: participants });
+          dispatch({ type: 'SYNC_VOTES', payload: votes });
+          dispatch({ type: 'JOIN_SESSION', payload: {
+            code: session.code,
+            alias: participantAlias,
+            participantId
+          }});
+        } else {
+          // Demo mode: just join locally
+          dispatch({ type: 'JOIN_SESSION', payload: { code: code.trim(), alias: alias.trim() } });
+        }
         setIsLoading(false);
       };
 
@@ -873,104 +801,109 @@
         setIsLoading(true);
         const sessionCode = generateSessionCode();
 
-        // Always create session locally (works offline and online)
-        dispatch({ type: 'CREATE_SESSION', payload: { id: `session-${Date.now()}`, code: sessionCode } });
+        if (supabaseApi.isConnected) {
+          // Real-time mode: create session in DB
+          const session = await supabaseApi.createSessionInDB(sessionCode, { autoAdvance: true, secondsPerQuestion: 12 });
+          if (session) {
+            // Subscribe to updates
+            supabaseApi.subscribeToSession(session.id);
+            supabaseApi.subscribeToParticipants(session.id);
+            supabaseApi.subscribeToVotes(session.id);
+
+            dispatch({ type: 'CREATE_SESSION', payload: { id: session.id, code: sessionCode } });
+          } else {
+            dispatch({ type: 'SET_ERROR', payload: 'Error al crear la sesión. Intenta de nuevo.' });
+          }
+        } else {
+          // Demo mode: create locally
+          dispatch({ type: 'CREATE_SESSION', payload: { id: `session-${Date.now()}`, code: sessionCode } });
+        }
         setIsLoading(false);
       };
 
-      const buttonStyle = { width: '100%', padding: '20px', fontSize: '16px', fontWeight: '700', border: 'none', cursor: 'pointer', transition: 'all 0.3s ease', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', borderRadius: '16px' };
-      const inputStyle = { width: '100%', padding: '16px', background: 'rgba(0, 0, 0, 0.3)', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#fff', fontSize: '18px', fontFamily: 'monospace', textAlign: 'center', outline: 'none', borderRadius: '12px', backdropFilter: 'blur(10px)' };
+      const buttonStyle = { width: '100%', padding: '20px', fontSize: '18px', fontWeight: '900', border: 'none', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', borderRadius: '12px' };
+      const inputStyle = { width: '100%', padding: '16px', background: '#000', border: '2px solid #333', color: '#fff', fontSize: '18px', fontFamily: 'monospace', textAlign: 'center', outline: 'none', borderRadius: '8px' };
 
       return (
-        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
-          <div className="animate-fadeInUp glass-card" style={{ maxWidth: '420px', width: '100%', padding: '40px 32px' }}>
-            {/* Logo */}
-            <div style={{ textAlign: 'center', marginBottom: '12px' }}>
-              <div style={{
-                width: '56px',
-                height: '56px',
-                margin: '0 auto 24px',
-                background: 'rgba(255, 255, 255, 0.05)',
-                borderRadius: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                border: '1px solid rgba(255, 255, 255, 0.1)'
-              }}>
-                <span style={{ fontSize: '28px' }}>⚡</span>
+        <div className="scanline" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+          <div className="animate-fadeInUp" style={{ maxWidth: '400px', width: '100%' }}>
+            <div style={{ textAlign: 'center', marginBottom: '48px' }}>
+              <div className="gradient-text" style={{ fontSize: '56px', fontWeight: '900', letterSpacing: '-2px', marginBottom: '8px' }}>
+                TRIAGE<span style={{ color: '#666' }}>AI</span>
               </div>
-              <div style={{ fontSize: '11px', letterSpacing: '3px', color: '#c9a227', marginBottom: '20px', fontWeight: '600' }}>TRIAGE AI</div>
-            </div>
-
-            {/* Main heading */}
-            <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-              <p style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '15px', lineHeight: '1.6', marginBottom: '12px' }}>
-                Queremos saber cómo ves el futuro de las <span style={{ color: '#c9a227' }}>tareas del día a día con IA.</span>
-              </p>
-              <p style={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '14px', lineHeight: '1.6' }}>
-                Vota si cada tarea es automatizable, aumentada o puramente humana.
-              </p>
+              <div style={{ color: '#666', fontSize: '12px', letterSpacing: '2px' }}>
+                ¿AUTOMATIZABLE · AUMENTADA · HUMANA?
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginTop: '24px' }}>
+                <span className="animate-float" style={{ fontSize: '32px' }}>🤖</span>
+                <span className="animate-float" style={{ fontSize: '32px', animationDelay: '0.2s' }}>🤝</span>
+                <span className="animate-float" style={{ fontSize: '32px', animationDelay: '0.4s' }}>✋</span>
+              </div>
             </div>
 
             {state.error && (
-              <div className="animate-shake" style={{ marginBottom: '24px', padding: '16px', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#ff6b6b', textAlign: 'center', borderRadius: '12px', fontSize: '14px' }}>
+              <div className="animate-shake" style={{ marginBottom: '24px', padding: '16px', border: '2px solid #ef4444', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', textAlign: 'center', borderRadius: '8px' }}>
                 {state.error}
-                <button onClick={() => dispatch({ type: 'CLEAR_ERROR' })} style={{ marginLeft: '12px', background: 'none', border: 'none', color: '#ff6b6b', cursor: 'pointer', fontSize: '16px' }}>✕</button>
+                <button onClick={() => dispatch({ type: 'CLEAR_ERROR' })} style={{ marginLeft: '16px', background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '16px' }}>✕</button>
               </div>
             )}
 
             {/* Connection status */}
-            <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+            <div style={{ textAlign: 'center', marginBottom: '24px' }}>
               <span style={{
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '8px',
                 padding: '8px 16px',
-                background: supabaseApi.isConnected ? 'rgba(52, 211, 153, 0.1)' : 'rgba(201, 162, 39, 0.1)',
-                border: `1px solid ${supabaseApi.isConnected ? 'rgba(52, 211, 153, 0.3)' : 'rgba(201, 162, 39, 0.3)'}`,
+                background: supabaseApi.isConnected ? 'rgba(52, 211, 153, 0.1)' : 'rgba(251, 191, 36, 0.1)',
+                border: `1px solid ${supabaseApi.isConnected ? '#34d399' : '#fbbf24'}`,
                 borderRadius: '20px',
                 fontSize: '11px',
-                color: supabaseApi.isConnected ? '#34d399' : '#c9a227',
-                fontWeight: '500'
+                color: supabaseApi.isConnected ? '#34d399' : '#fbbf24'
               }}>
                 <span className="animate-pulse" style={{
-                  width: '6px',
-                  height: '6px',
+                  width: '8px',
+                  height: '8px',
                   borderRadius: '50%',
-                  background: supabaseApi.isConnected ? '#34d399' : '#c9a227'
+                  background: supabaseApi.isConnected ? '#34d399' : '#fbbf24'
                 }}></span>
                 {supabaseApi.isConnected ? 'MODO MULTIJUGADOR' : 'MODO DEMO'}
               </span>
             </div>
 
             {!mode && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <button onClick={() => setMode('join')} disabled={isLoading} className="touch-feedback hover-lift" style={{ ...buttonStyle, background: 'linear-gradient(135deg, #c9a227 0%, #d4af37 100%)', color: '#000' }}>
-                  <span style={{ fontSize: '20px' }}>📱</span> UNIRSE A SESIÓN
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <button onClick={() => setMode('join')} disabled={isLoading} className="touch-feedback hover-lift" style={{ ...buttonStyle, background: '#fff', color: '#000' }}>
+                  <span style={{ fontSize: '24px' }}>📱</span> UNIRSE A SESIÓN
                 </button>
-                <button onClick={handleCreate} disabled={isLoading} className="touch-feedback hover-lift" style={{ ...buttonStyle, background: 'rgba(255, 255, 255, 0.08)', color: '#fff', border: '1px solid rgba(255, 255, 255, 0.15)' }}>
-                  {isLoading ? <><span className="animate-pulse">⏳</span> CREANDO...</> : <><span style={{ fontSize: '20px' }}>🎮</span> CREAR SESIÓN</>}
+                <button onClick={handleCreate} disabled={isLoading} className="touch-feedback hover-lift" style={{ ...buttonStyle, background: '#000', color: '#fff', border: '2px solid #333' }}>
+                  {isLoading ? <><span className="animate-pulse">⏳</span> CREANDO...</> : <><span style={{ fontSize: '24px' }}>🎮</span> CREAR SESIÓN</>}
                 </button>
               </div>
             )}
 
             {mode === 'join' && (
-              <div className="animate-fadeInUp" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div className="animate-fadeInUp" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255, 255, 255, 0.5)', marginBottom: '8px', letterSpacing: '2px', fontWeight: '500' }}>TU ALIAS (OPCIONAL)</label>
-                  <input type="text" value={alias} onChange={(e) => setAlias(e.target.value)} placeholder="ANON" autoFocus style={inputStyle} onFocus={(e) => e.target.style.borderColor = 'rgba(201, 162, 39, 0.5)'} onBlur={(e) => e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)'} />
+                  <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '8px', letterSpacing: '2px' }}>CÓDIGO DE SALA</label>
+                  <input type="text" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="BRAVELION42" maxLength={15} autoFocus style={{ ...inputStyle, letterSpacing: '4px' }} onFocus={(e) => e.target.style.borderColor = '#fff'} onBlur={(e) => e.target.style.borderColor = '#333'} />
                 </div>
-                <button onClick={handleJoin} disabled={isLoading} className="touch-feedback hover-lift" style={{ ...buttonStyle, background: !isLoading ? 'linear-gradient(135deg, #c9a227 0%, #d4af37 100%)' : 'rgba(255, 255, 255, 0.1)', color: !isLoading ? '#000' : 'rgba(255, 255, 255, 0.4)' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '8px', letterSpacing: '2px' }}>TU ALIAS (OPCIONAL)</label>
+                  <input type="text" value={alias} onChange={(e) => setAlias(e.target.value)} placeholder="ANON" style={inputStyle} onFocus={(e) => e.target.style.borderColor = '#fff'} onBlur={(e) => e.target.style.borderColor = '#333'} />
+                </div>
+                <button onClick={handleJoin} disabled={!code.trim() || isLoading} className="touch-feedback hover-lift" style={{ ...buttonStyle, background: code.trim() && !isLoading ? '#fff' : '#333', color: code.trim() && !isLoading ? '#000' : '#666', cursor: code.trim() && !isLoading ? 'pointer' : 'not-allowed' }}>
                   {isLoading ? <><span className="animate-pulse">⏳</span> CONECTANDO...</> : 'ENTRAR →'}
                 </button>
-                <button onClick={() => setMode(null)} disabled={isLoading} style={{ ...buttonStyle, background: 'transparent', color: 'rgba(255, 255, 255, 0.5)', padding: '12px' }}>
+                <button onClick={() => setMode(null)} disabled={isLoading} style={{ ...buttonStyle, background: 'transparent', color: '#666', padding: '12px' }}>
                   ← VOLVER
                 </button>
               </div>
             )}
 
-            <div style={{ marginTop: '40px', textAlign: 'center', paddingTop: '24px', borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
-              <div style={{ color: 'rgba(255, 255, 255, 0.25)', fontSize: '10px', letterSpacing: '2px' }}>GARAJE DE IDEAS®</div>
+            <div style={{ marginTop: '64px', textAlign: 'center' }}>
+              <div style={{ color: '#333', fontSize: '10px', letterSpacing: '2px' }}>GARAJE DE IDEAS®</div>
+              <div style={{ color: '#222', fontSize: '9px', marginTop: '4px' }}>DIGITAL FOR NONCONFORMISTS</div>
             </div>
           </div>
         </div>
@@ -978,29 +911,17 @@
     }
 
     function ParticipantWaiting({ session, participantCount, dispatch, supabaseApi }) {
-      // Poll localStorage to detect when facilitator starts the session
-      useEffect(() => {
-        const pollInterval = setInterval(() => {
-          const storedData = loadSessionFromStorage();
-          if (storedData?.session?.status === 'active') {
-            dispatch({ type: 'START_SESSION' });
-          }
-        }, 1000); // Check every second
-
-        return () => clearInterval(pollInterval);
-      }, [dispatch]);
-
       const handleStartDemo = () => {
         dispatch({ type: 'ADD_SIMULATED_PARTICIPANTS', payload: { count: 25 } });
         dispatch({ type: 'START_SESSION' });
       };
 
       return (
-        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
-          <div className="animate-fadeInUp glass-card" style={{ maxWidth: '420px', width: '100%', padding: '40px 32px', textAlign: 'center' }}>
-            <div className="animate-float" style={{ fontSize: '64px', marginBottom: '24px', opacity: 0.8 }}>⏳</div>
-            <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '12px', color: '#fff' }}>ESPERANDO</h2>
-            <p style={{ color: 'rgba(255, 255, 255, 0.5)', marginBottom: '20px', fontSize: '14px', lineHeight: '1.6' }}>
+        <div className="scanline" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+          <div className="animate-fadeInUp" style={{ maxWidth: '400px', width: '100%', textAlign: 'center' }}>
+            <div className="animate-float" style={{ fontSize: '80px', marginBottom: '32px' }}>◻</div>
+            <h2 style={{ fontSize: '24px', fontWeight: '900', marginBottom: '16px' }}>ESPERANDO</h2>
+            <p style={{ color: '#666', marginBottom: '16px' }}>
               {supabaseApi.isConnected
                 ? 'El facilitador iniciará la votación pronto'
                 : 'La votación comenzará en breve'}
@@ -1013,39 +934,38 @@
                 alignItems: 'center',
                 gap: '8px',
                 padding: '8px 16px',
-                background: supabaseApi.isConnected ? 'rgba(52, 211, 153, 0.1)' : 'rgba(201, 162, 39, 0.1)',
-                border: `1px solid ${supabaseApi.isConnected ? 'rgba(52, 211, 153, 0.3)' : 'rgba(201, 162, 39, 0.3)'}`,
+                background: supabaseApi.isConnected ? 'rgba(52, 211, 153, 0.1)' : 'rgba(251, 191, 36, 0.1)',
+                border: `1px solid ${supabaseApi.isConnected ? '#34d399' : '#fbbf24'}`,
                 borderRadius: '20px',
                 fontSize: '11px',
-                color: supabaseApi.isConnected ? '#34d399' : '#c9a227',
-                fontWeight: '500'
+                color: supabaseApi.isConnected ? '#34d399' : '#fbbf24'
               }}>
                 <span className="animate-pulse" style={{
-                  width: '6px',
-                  height: '6px',
+                  width: '8px',
+                  height: '8px',
                   borderRadius: '50%',
-                  background: supabaseApi.isConnected ? '#34d399' : '#c9a227'
+                  background: supabaseApi.isConnected ? '#34d399' : '#fbbf24'
                 }}></span>
                 {supabaseApi.isConnected ? 'SINCRONIZADO EN TIEMPO REAL' : 'MODO DEMO'}
               </span>
             </div>
 
-            <div style={{ padding: '24px', marginBottom: '24px', background: 'rgba(0, 0, 0, 0.2)', borderRadius: '16px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
-              <div style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.4)', letterSpacing: '2px', marginBottom: '8px' }}>CÓDIGO</div>
-              <div style={{ fontSize: '28px', fontFamily: 'monospace', fontWeight: '700', letterSpacing: '4px', color: '#c9a227' }}>{session.code}</div>
+            <div className="glass" style={{ padding: '24px', marginBottom: '32px', borderRadius: '12px' }}>
+              <div style={{ fontSize: '12px', color: '#666', letterSpacing: '2px', marginBottom: '8px' }}>CÓDIGO</div>
+              <div style={{ fontSize: '32px', fontFamily: 'monospace', fontWeight: '900', letterSpacing: '4px' }}>{session.code}</div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', marginBottom: '28px' }}>
-              <span className="animate-pulse" style={{ display: 'inline-block', width: '10px', height: '10px', background: '#34d399', borderRadius: '50%' }}></span>
-              <span style={{ fontFamily: 'monospace', fontSize: '24px', color: '#fff' }}>{String(participantCount).padStart(3, '0')}</span>
-              <span style={{ color: 'rgba(255, 255, 255, 0.4)', fontSize: '14px' }}>conectados</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', color: '#888', marginBottom: '32px' }}>
+              <span className="animate-pulse" style={{ display: 'inline-block', width: '12px', height: '12px', background: '#34d399', borderRadius: '50%' }}></span>
+              <span style={{ fontFamily: 'monospace', fontSize: '24px' }}>{String(participantCount).padStart(3, '0')}</span>
+              <span style={{ color: '#555' }}>conectados</span>
             </div>
 
             {/* Only show demo button if NOT in real-time mode */}
             {!supabaseApi.isConnected && (
-              <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.06)', paddingTop: '28px' }}>
-                <p style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.4)', marginBottom: '16px', letterSpacing: '2px' }}>¿PROBANDO LA APP?</p>
-                <button onClick={handleStartDemo} className="touch-feedback hover-lift" style={{ width: '100%', padding: '16px', background: 'rgba(255, 255, 255, 0.08)', color: '#fff', border: '1px solid rgba(255, 255, 255, 0.15)', fontWeight: '600', cursor: 'pointer', borderRadius: '12px', fontSize: '14px' }}>
+              <div style={{ borderTop: '1px solid #333', paddingTop: '32px' }}>
+                <p style={{ fontSize: '12px', color: '#555', marginBottom: '16px', letterSpacing: '2px' }}>¿PROBANDO LA APP?</p>
+                <button onClick={handleStartDemo} className="touch-feedback hover-lift" style={{ width: '100%', padding: '16px', background: 'transparent', color: '#fff', border: '2px solid #333', fontWeight: 'bold', cursor: 'pointer', borderRadius: '8px' }}>
                   INICIAR MODO DEMO →
                 </button>
               </div>
@@ -1061,25 +981,6 @@
       const [cardKey, setCardKey] = useState(0);
       const [hasVotedThisQuestion, setHasVotedThisQuestion] = useState(false);
       const prevQuestionRef = useRef(session.currentQuestion);
-
-      // Poll localStorage to sync with facilitator's question advances
-      useEffect(() => {
-        const pollInterval = setInterval(() => {
-          const storedData = loadSessionFromStorage();
-          if (storedData?.session) {
-            // Check if session ended
-            if (storedData.session.status === 'finished') {
-              dispatch({ type: 'END_SESSION' });
-            }
-            // Check if question advanced
-            else if (storedData.session.currentQuestion !== session.currentQuestion) {
-              dispatch({ type: 'SYNC_SESSION', payload: storedData.session });
-            }
-          }
-        }, 1000);
-
-        return () => clearInterval(pollInterval);
-      }, [dispatch, session.currentQuestion]);
 
       // Reset vote state when question changes
       useEffect(() => {
@@ -1100,10 +1001,22 @@
         if (hasVotedThisQuestion) return;
         setHasVotedThisQuestion(true);
 
-        // Update local state and sync to localStorage
+        // Submit to Supabase if connected
+        if (supabaseApi.isConnected && session.id) {
+          await supabaseApi.submitVoteToDB(session.id, currentParticipant.id, session.currentQuestion, voteType);
+        }
+
+        // Update local state
         dispatch({ type: 'VOTE', payload: { participantId: currentParticipant.id, questionIndex: session.currentQuestion, vote: voteType } });
 
-        // Facilitator controls question advancement - participant just waits
+        // Only auto-advance in demo mode (facilitator controls in real-time mode)
+        if (!supabaseApi.isConnected) {
+          setTimeout(() => {
+            dispatch({ type: 'SIMULATE_VOTES', payload: { questionIndex: session.currentQuestion } });
+            dispatch({ type: 'ADVANCE_QUESTION' });
+            setCardKey(k => k + 1);
+          }, 400);
+        }
       };
 
       const handleVote = useCallback((voteType) => {
@@ -1239,112 +1152,116 @@
       const handleAddSimulated = (count) => { dispatch({ type: 'ADD_SIMULATED_PARTICIPANTS', payload: { count } }); };
 
       return (
-        <div style={{ minHeight: '100vh', padding: '24px' }}>
+        <div className="scanline" style={{ minHeight: '100vh', padding: '24px' }}>
           <div style={{ maxWidth: '900px', margin: '0 auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '48px' }}>
               <div className="animate-fadeInUp">
-                <h1 style={{ fontSize: '32px', fontWeight: '800', marginBottom: '8px', color: '#fff' }}>PANEL DE CONTROL</h1>
-                <p style={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '14px' }}>Configura antes de comenzar</p>
+                <h1 style={{ fontSize: '36px', fontWeight: '900', marginBottom: '8px' }}>PANEL DE CONTROL</h1>
+                <p style={{ color: '#666' }}>Configura antes de comenzar</p>
               </div>
-              <button onClick={() => dispatch({ type: 'RESET' })} style={{ background: 'rgba(255, 255, 255, 0.1)', border: 'none', color: 'rgba(255, 255, 255, 0.6)', fontSize: '20px', cursor: 'pointer', width: '40px', height: '40px', borderRadius: '10px' }}>✕</button>
+              <button onClick={() => dispatch({ type: 'RESET' })} style={{ background: 'transparent', border: 'none', color: '#555', fontSize: '24px', cursor: 'pointer' }}>✕</button>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
-              <div className="glass-card" style={{ padding: '32px' }}>
-                <div style={{ fontSize: '11px', color: '#c9a227', letterSpacing: '2px', marginBottom: '20px', fontWeight: '600' }}>ESCANEA PARA UNIRTE</div>
-                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
-                  <div style={{ background: '#fff', padding: '12px', borderRadius: '12px' }}>
-                    <img src={QR_IMAGE_URL} alt="QR Code" style={{ width: '180px', height: '180px', display: 'block' }} />
-                  </div>
+              <div style={{ border: '2px solid #333', padding: '32px', borderRadius: '16px' }}>
+                <div style={{ fontSize: '12px', color: '#666', letterSpacing: '2px', marginBottom: '16px' }}>CÓDIGO DE ACCESO</div>
+                <div style={{ background: '#fff', color: '#000', padding: '32px', textAlign: 'center', borderRadius: '12px', marginBottom: '16px' }}>
+                  <div style={{ fontSize: '40px', fontWeight: '900', fontFamily: 'monospace', letterSpacing: '4px' }}>{session.code}</div>
                 </div>
-                <div style={{ textAlign: 'center' }}>
-                  <p style={{ color: 'rgba(255, 255, 255, 0.4)', fontSize: '12px', marginBottom: '12px' }}>O entra directamente en:</p>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+                  <QRCodeComponent value={`${window.location.origin}?code=${session.code}`} size={180} />
+                </div>
+                <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+                  <p style={{ color: '#888', fontSize: '12px', marginBottom: '8px' }}>O entra en:</p>
                   <div style={{
-                    background: 'rgba(0, 0, 0, 0.3)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    borderRadius: '12px',
+                    background: '#111',
+                    border: '1px solid #333',
+                    borderRadius: '8px',
                     padding: '12px 16px',
-                    marginBottom: '8px'
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '8px'
                   }}>
                     <code style={{
-                      color: '#c9a227',
+                      color: '#34d399',
                       fontSize: '11px',
-                      fontWeight: '600',
                       wordBreak: 'break-all',
-                      lineHeight: '1.4'
+                      flex: 1,
+                      textAlign: 'left'
                     }}>
-                      {FULL_URL}
+                      {window.location.origin}?code={session.code}
                     </code>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(`${window.location.origin}?code=${session.code}`);
+                        alert('URL copiada!');
+                      }}
+                      style={{
+                        background: '#333',
+                        border: 'none',
+                        color: '#fff',
+                        padding: '6px 10px',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '12px',
+                        flexShrink: 0
+                      }}
+                    >
+                      📋 Copiar
+                    </button>
                   </div>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(FULL_URL);
-                      alert('URL copiada!');
-                    }}
-                    style={{
-                      background: 'rgba(201, 162, 39, 0.2)',
-                      border: '1px solid rgba(201, 162, 39, 0.3)',
-                      color: '#c9a227',
-                      padding: '10px 20px',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      fontSize: '13px',
-                      fontWeight: '600'
-                    }}
-                  >
-                    📋 Copiar enlace
-                  </button>
                 </div>
               </div>
 
-              <div className="glass-card" style={{ padding: '32px' }}>
-                <div style={{ fontSize: '11px', color: '#c9a227', letterSpacing: '2px', marginBottom: '20px', fontWeight: '600' }}>PARTICIPANTES</div>
-                <div style={{ textAlign: 'center', padding: '24px 0' }}>
-                  <div style={{ fontSize: '64px', fontWeight: '800', fontFamily: 'monospace', color: '#fff' }}>{String(participants.length).padStart(3, '0')}</div>
-                  <div style={{ color: 'rgba(255, 255, 255, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '14px' }}>
+              <div style={{ border: '2px solid #333', padding: '32px', borderRadius: '16px' }}>
+                <div style={{ fontSize: '12px', color: '#666', letterSpacing: '2px', marginBottom: '16px' }}>PARTICIPANTES</div>
+                <div style={{ textAlign: 'center', padding: '32px 0' }}>
+                  <div className="gradient-text" style={{ fontSize: '72px', fontWeight: '900', fontFamily: 'monospace' }}>{String(participants.length).padStart(3, '0')}</div>
+                  <div style={{ color: '#666', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                     <span className="animate-pulse" style={{ display: 'inline-block', width: '8px', height: '8px', background: '#34d399', borderRadius: '50%' }}></span>
                     conectados
                   </div>
                 </div>
-                <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.06)', paddingTop: '20px', marginTop: '20px' }}>
-                  <div style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.4)', marginBottom: '12px', letterSpacing: '2px' }}>SIMULADOR</div>
+                <div style={{ borderTop: '1px solid #333', paddingTop: '24px', marginTop: '24px' }}>
+                  <div style={{ fontSize: '12px', color: '#555', marginBottom: '12px', letterSpacing: '2px' }}>SIMULADOR</div>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     {[5, 10, 25, 50].map(n => (
-                      <button key={n} onClick={() => handleAddSimulated(n)} className="hover-lift" style={{ flex: 1, padding: '12px', border: '1px solid rgba(255, 255, 255, 0.1)', background: 'rgba(255, 255, 255, 0.05)', color: '#fff', fontFamily: 'monospace', cursor: 'pointer', borderRadius: '10px', fontSize: '14px' }}>+{n}</button>
+                      <button key={n} onClick={() => handleAddSimulated(n)} className="hover-lift" style={{ flex: 1, padding: '12px', border: '1px solid #333', background: 'transparent', color: '#fff', fontFamily: 'monospace', cursor: 'pointer', borderRadius: '8px' }}>+{n}</button>
                     ))}
                   </div>
                 </div>
               </div>
 
-              <div className="glass-card" style={{ padding: '32px', gridColumn: 'span 2' }}>
-                <div style={{ fontSize: '11px', color: '#c9a227', letterSpacing: '2px', marginBottom: '24px', fontWeight: '600' }}>CONFIGURACIÓN</div>
+              <div style={{ border: '2px solid #333', padding: '32px', borderRadius: '16px', gridColumn: 'span 2' }}>
+                <div style={{ fontSize: '12px', color: '#666', letterSpacing: '2px', marginBottom: '24px' }}>CONFIGURACIÓN</div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '32px' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '16px', cursor: 'pointer' }}>
-                    <div onClick={() => setConfig({ ...config, autoAdvance: !config.autoAdvance })} style={{ width: '24px', height: '24px', border: `2px solid ${config.autoAdvance ? '#c9a227' : 'rgba(255, 255, 255, 0.2)'}`, background: config.autoAdvance ? '#c9a227' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '6px', cursor: 'pointer', transition: 'all 0.2s' }}>
-                      {config.autoAdvance && <span style={{ color: '#000', fontWeight: 'bold' }}>✓</span>}
+                    <div onClick={() => setConfig({ ...config, autoAdvance: !config.autoAdvance })} style={{ width: '24px', height: '24px', border: `2px solid ${config.autoAdvance ? '#fff' : '#333'}`, background: config.autoAdvance ? '#fff' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '6px', cursor: 'pointer' }}>
+                      {config.autoAdvance && <span style={{ color: '#000' }}>✓</span>}
                     </div>
                     <div>
-                      <div style={{ fontWeight: '600', color: '#fff' }}>Avance automático</div>
-                      <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.5)' }}>Las preguntas avanzan solas</div>
+                      <div style={{ fontWeight: 'bold' }}>Avance automático</div>
+                      <div style={{ fontSize: '14px', color: '#666' }}>Las preguntas avanzan solas</div>
                     </div>
                   </label>
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                      <span style={{ fontWeight: '600', color: '#fff' }}>Segundos por pregunta</span>
-                      <span style={{ fontFamily: 'monospace', color: '#c9a227' }}>{config.secondsPerQuestion}s</span>
+                      <span style={{ fontWeight: 'bold' }}>Segundos por pregunta</span>
+                      <span style={{ fontFamily: 'monospace', color: '#888' }}>{config.secondsPerQuestion}s</span>
                     </div>
-                    <input type="range" min="5" max="30" value={config.secondsPerQuestion} onChange={(e) => setConfig({ ...config, secondsPerQuestion: parseInt(e.target.value) })} style={{ width: '100%', accentColor: '#c9a227' }} />
+                    <input type="range" min="5" max="30" value={config.secondsPerQuestion} onChange={(e) => setConfig({ ...config, secondsPerQuestion: parseInt(e.target.value) })} style={{ width: '100%', accentColor: '#fff' }} />
                   </div>
                 </div>
-                <div style={{ marginTop: '28px', padding: '16px', background: 'rgba(0, 0, 0, 0.2)', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
-                  <span style={{ color: 'rgba(255, 255, 255, 0.5)' }}>Duración estimada: </span>
-                  <span style={{ fontWeight: '700', fontFamily: 'monospace', fontSize: '20px', color: '#c9a227' }}>{Math.ceil((QUESTIONS.length * config.secondsPerQuestion) / 60)} MIN</span>
+                <div className="glass" style={{ marginTop: '32px', padding: '16px', borderRadius: '12px' }}>
+                  <span style={{ color: '#666' }}>Duración estimada: </span>
+                  <span style={{ fontWeight: 'bold', fontFamily: 'monospace', fontSize: '20px' }}>{Math.ceil((QUESTIONS.length * config.secondsPerQuestion) / 60)} MIN</span>
                 </div>
               </div>
             </div>
 
             <div style={{ marginTop: '48px', textAlign: 'center' }}>
-              <button onClick={handleStart} disabled={participants.length === 0} className="touch-feedback hover-lift" style={{ padding: '20px 56px', background: participants.length === 0 ? 'rgba(255, 255, 255, 0.1)' : 'linear-gradient(135deg, #c9a227 0%, #d4af37 100%)', color: participants.length === 0 ? 'rgba(255, 255, 255, 0.4)' : '#000', fontSize: '16px', fontWeight: '700', border: 'none', cursor: participants.length === 0 ? 'not-allowed' : 'pointer', borderRadius: '14px' }}>
+              <button onClick={handleStart} disabled={participants.length === 0} className="touch-feedback hover-lift" style={{ padding: '24px 64px', background: participants.length === 0 ? '#333' : '#fff', color: participants.length === 0 ? '#666' : '#000', fontSize: '20px', fontWeight: '900', border: 'none', cursor: participants.length === 0 ? 'not-allowed' : 'pointer', borderRadius: '16px' }}>
                 {participants.length === 0 ? '⏳ ESPERANDO PARTICIPANTES...' : '🚀 COMENZAR VOTACIÓN →'}
               </button>
             </div>
