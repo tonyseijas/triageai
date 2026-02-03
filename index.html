@@ -243,7 +243,9 @@
 
     // Fixed session code - always the same for simplicity
     const FIXED_SESSION_CODE = 'TRIAGEAI';
-    const SHORT_URL = 'triageai.vercel.app';
+    const FULL_URL = 'https://triageai-git-main-tony-seijas-projects.vercel.app';
+    // Static QR code image (pre-generated for the URL above)
+    const QR_IMAGE_URL = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://triageai-git-main-tony-seijas-projects.vercel.app';
 
     const generateSessionCode = () => FIXED_SESSION_CODE;
 
@@ -1223,7 +1225,9 @@
               <div className="glass-card" style={{ padding: '32px' }}>
                 <div style={{ fontSize: '11px', color: '#c9a227', letterSpacing: '2px', marginBottom: '20px', fontWeight: '600' }}>ESCANEA PARA UNIRTE</div>
                 <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
-                  <QRCodeComponent value={SHORT_URL} size={200} />
+                  <div style={{ background: '#fff', padding: '12px', borderRadius: '12px' }}>
+                    <img src={QR_IMAGE_URL} alt="QR Code" style={{ width: '180px', height: '180px', display: 'block' }} />
+                  </div>
                 </div>
                 <div style={{ textAlign: 'center' }}>
                   <p style={{ color: 'rgba(255, 255, 255, 0.4)', fontSize: '12px', marginBottom: '12px' }}>O entra directamente en:</p>
@@ -1231,38 +1235,37 @@
                     background: 'rgba(0, 0, 0, 0.3)',
                     border: '1px solid rgba(255, 255, 255, 0.1)',
                     borderRadius: '12px',
-                    padding: '16px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '12px'
+                    padding: '12px 16px',
+                    marginBottom: '8px'
                   }}>
                     <code style={{
                       color: '#c9a227',
-                      fontSize: '18px',
-                      fontWeight: '700',
-                      letterSpacing: '1px'
+                      fontSize: '11px',
+                      fontWeight: '600',
+                      wordBreak: 'break-all',
+                      lineHeight: '1.4'
                     }}>
-                      {SHORT_URL}
+                      {FULL_URL}
                     </code>
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(`https://${SHORT_URL}`);
-                        alert('URL copiada!');
-                      }}
-                      style={{
-                        background: 'rgba(201, 162, 39, 0.2)',
-                        border: '1px solid rgba(201, 162, 39, 0.3)',
-                        color: '#c9a227',
-                        padding: '8px 12px',
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        fontSize: '14px'
-                      }}
-                    >
-                      📋
-                    </button>
                   </div>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(FULL_URL);
+                      alert('URL copiada!');
+                    }}
+                    style={{
+                      background: 'rgba(201, 162, 39, 0.2)',
+                      border: '1px solid rgba(201, 162, 39, 0.3)',
+                      color: '#c9a227',
+                      padding: '10px 20px',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      fontSize: '13px',
+                      fontWeight: '600'
+                    }}
+                  >
+                    📋 Copiar enlace
+                  </button>
                 </div>
               </div>
 
