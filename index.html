@@ -783,62 +783,14 @@
     // VISTAS
     // ============================================
     function LandingPage({ dispatch, state, supabaseApi }) {
-      const [code, setCode] = useState('');
       const [alias, setAlias] = useState('');
       const [mode, setMode] = useState(null);
       const [isLoading, setIsLoading] = useState(false);
 
       const handleJoin = async () => {
-        if (!code.trim()) return;
         setIsLoading(true);
-
-        if (supabaseApi.isConnected) {
-          // Real-time mode: find session in DB
-          const session = await supabaseApi.findSessionByCode(code.trim());
-          if (!session) {
-            dispatch({ type: 'SET_ERROR', payload: 'Sesión no encontrada. Verifica el código.' });
-            setIsLoading(false);
-            return;
-          }
-          if (session.status === 'finished') {
-            dispatch({ type: 'SET_ERROR', payload: 'Esta sesión ya ha terminado.' });
-            setIsLoading(false);
-            return;
-          }
-
-          // Create participant
-          const participantId = `p-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
-          const participantAlias = alias.trim() || `USER_${Date.now().toString().slice(-4)}`;
-          await supabaseApi.addParticipantToDB(session.id, participantId, participantAlias);
-
-          // Subscribe to updates
-          supabaseApi.subscribeToSession(session.id);
-          supabaseApi.subscribeToParticipants(session.id);
-          supabaseApi.subscribeToVotes(session.id);
-
-          // Load existing data
-          const participants = await supabaseApi.loadParticipants(session.id);
-          const votes = await supabaseApi.loadVotes(session.id);
-
-          dispatch({ type: 'SET_SESSION_ID', payload: session.id });
-          dispatch({ type: 'SYNC_SESSION', payload: {
-            id: session.id,
-            code: session.code,
-            status: session.status,
-            currentQuestion: session.current_question,
-            config: session.config
-          }});
-          dispatch({ type: 'SYNC_PARTICIPANTS', payload: participants });
-          dispatch({ type: 'SYNC_VOTES', payload: votes });
-          dispatch({ type: 'JOIN_SESSION', payload: {
-            code: session.code,
-            alias: participantAlias,
-            participantId
-          }});
-        } else {
-          // Demo mode: just join locally
-          dispatch({ type: 'JOIN_SESSION', payload: { code: code.trim(), alias: alias.trim() } });
-        }
+        // Join session directly with fixed code
+        dispatch({ type: 'JOIN_SESSION', payload: { code: FIXED_SESSION_CODE, alias: alias.trim() } });
         setIsLoading(false);
       };
 
@@ -930,14 +882,10 @@
             {mode === 'join' && (
               <div className="animate-fadeInUp" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255, 255, 255, 0.5)', marginBottom: '8px', letterSpacing: '2px', fontWeight: '500' }}>CÓDIGO DE SALA</label>
-                  <input type="text" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="BRAVELION42" maxLength={15} autoFocus style={{ ...inputStyle, letterSpacing: '4px' }} onFocus={(e) => e.target.style.borderColor = 'rgba(201, 162, 39, 0.5)'} onBlur={(e) => e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)'} />
-                </div>
-                <div>
                   <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255, 255, 255, 0.5)', marginBottom: '8px', letterSpacing: '2px', fontWeight: '500' }}>TU ALIAS (OPCIONAL)</label>
-                  <input type="text" value={alias} onChange={(e) => setAlias(e.target.value)} placeholder="ANON" style={inputStyle} onFocus={(e) => e.target.style.borderColor = 'rgba(201, 162, 39, 0.5)'} onBlur={(e) => e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)'} />
+                  <input type="text" value={alias} onChange={(e) => setAlias(e.target.value)} placeholder="ANON" autoFocus style={inputStyle} onFocus={(e) => e.target.style.borderColor = 'rgba(201, 162, 39, 0.5)'} onBlur={(e) => e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)'} />
                 </div>
-                <button onClick={handleJoin} disabled={!code.trim() || isLoading} className="touch-feedback hover-lift" style={{ ...buttonStyle, background: code.trim() && !isLoading ? 'linear-gradient(135deg, #c9a227 0%, #d4af37 100%)' : 'rgba(255, 255, 255, 0.1)', color: code.trim() && !isLoading ? '#000' : 'rgba(255, 255, 255, 0.4)', cursor: code.trim() && !isLoading ? 'pointer' : 'not-allowed' }}>
+                <button onClick={handleJoin} disabled={isLoading} className="touch-feedback hover-lift" style={{ ...buttonStyle, background: !isLoading ? 'linear-gradient(135deg, #c9a227 0%, #d4af37 100%)' : 'rgba(255, 255, 255, 0.1)', color: !isLoading ? '#000' : 'rgba(255, 255, 255, 0.4)' }}>
                   {isLoading ? <><span className="animate-pulse">⏳</span> CONECTANDO...</> : 'ENTRAR →'}
                 </button>
                 <button onClick={() => setMode(null)} disabled={isLoading} style={{ ...buttonStyle, background: 'transparent', color: 'rgba(255, 255, 255, 0.5)', padding: '12px' }}>
