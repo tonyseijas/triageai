@@ -257,18 +257,17 @@
         case 'SIMULATE_VOTES':
           const newVotes = { ...state.votes };
           state.participants.forEach(p => {
-            if (p.isSimulated) {
-              const voteKey = `${p.id}-${action.payload.questionIndex}`;
-              if (!newVotes[voteKey]) {
-                const question = QUESTIONS[action.payload.questionIndex];
-                const rand = Math.random();
-                let vote;
-                if (question.block === 'produccion') vote = rand < 0.7 ? 'auto' : rand < 0.9 ? 'augmented' : 'human';
-                else if (question.block === 'research') vote = rand < 0.3 ? 'auto' : rand < 0.7 ? 'augmented' : 'human';
-                else if (question.block === 'estrategia') vote = rand < 0.15 ? 'auto' : rand < 0.5 ? 'augmented' : 'human';
-                else vote = rand < 0.05 ? 'auto' : rand < 0.25 ? 'augmented' : 'human';
-                newVotes[voteKey] = vote;
-              }
+            // Simulate votes for ALL participants (simulated ones always, real ones only if they haven't voted)
+            const voteKey = `${p.id}-${action.payload.questionIndex}`;
+            if (!newVotes[voteKey]) {
+              const question = QUESTIONS[action.payload.questionIndex];
+              const rand = Math.random();
+              let vote;
+              // Adjusted probabilities for new blocks
+              if (question.block === 'inteligencia') vote = rand < 0.5 ? 'auto' : rand < 0.85 ? 'augmented' : 'human';
+              else if (question.block === 'definicion') vote = rand < 0.2 ? 'auto' : rand < 0.6 ? 'augmented' : 'human';
+              else vote = rand < 0.15 ? 'auto' : rand < 0.5 ? 'augmented' : 'human'; // creacion
+              newVotes[voteKey] = vote;
             }
           });
           return { ...state, votes: newVotes };
