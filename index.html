@@ -226,7 +226,7 @@
     // REDUCER
     // ============================================
     const initialState = {
-      session: { id: null, code: null, status: 'idle', currentQuestion: 0, currentRound: 1, showRoundSummary: false, completedRound: null, config: { autoAdvance: true, secondsPerQuestion: 12 } },
+      session: { id: null, code: null, status: 'idle', currentQuestion: 0, currentRound: 1, config: { autoAdvance: true, secondsPerQuestion: 12 } },
       participants: [],
       votes: {},
       view: 'landing',
@@ -246,14 +246,7 @@
         case 'ADVANCE_QUESTION':
           const nextQ = state.session.currentQuestion + 1;
           if (nextQ >= QUESTIONS.length) return { ...state, session: { ...state.session, status: 'finished' }, view: state.view.startsWith('facilitator') ? 'facilitator-results' : 'participant-results' };
-          // Check if we just finished a round (every 6 questions)
-          if (isEndOfRound(state.session.currentQuestion)) {
-            const justCompletedRound = getCurrentRound(state.session.currentQuestion);
-            return { ...state, session: { ...state.session, currentQuestion: nextQ, showRoundSummary: true, completedRound: justCompletedRound, currentRound: getCurrentRound(nextQ) } };
-          }
           return { ...state, session: { ...state.session, currentQuestion: nextQ, currentRound: getCurrentRound(nextQ) } };
-        case 'CONTINUE_FROM_SUMMARY':
-          return { ...state, session: { ...state.session, showRoundSummary: false, completedRound: null } };
         case 'VOTE':
           return { ...state, votes: { ...state.votes, [`${action.payload.participantId}-${action.payload.questionIndex}`]: action.payload.vote } };
         case 'UPDATE_CONFIG':
@@ -1175,19 +1168,6 @@
       // Calculate progress within current round
       const questionInRound = (session.currentQuestion % QUESTIONS_PER_ROUND) + 1;
 
-      // Show round summary if needed (MUST be after all hooks)
-      if (session.showRoundSummary && session.completedRound) {
-        return (
-          <RoundSummary
-            roundNumber={session.completedRound}
-            votes={votes}
-            participants={participants}
-            onContinue={() => dispatch({ type: 'CONTINUE_FROM_SUMMARY' })}
-            isParticipant={false}
-          />
-        );
-      }
-
       return (
         <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
           <div style={{ padding: '16px', borderBottom: '1px solid #222' }}>
@@ -1462,19 +1442,6 @@
 
       // Calculate progress within current round
       const questionInRound = (session.currentQuestion % QUESTIONS_PER_ROUND) + 1;
-
-      // Show round summary if needed (MUST be after all hooks)
-      if (session.showRoundSummary && session.completedRound) {
-        return (
-          <RoundSummary
-            roundNumber={session.completedRound}
-            votes={votes}
-            participants={participants}
-            onContinue={() => dispatch({ type: 'CONTINUE_FROM_SUMMARY' })}
-            isParticipant={false}
-          />
-        );
-      }
 
       return (
         <div className="scanline" style={{ minHeight: '100vh', padding: '24px' }}>
