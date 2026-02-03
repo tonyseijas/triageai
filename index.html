@@ -7,8 +7,20 @@
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script>
+    // Initialize Supabase client globally before React/Babel runs
+    var SUPABASE_URL = 'https://fkylhefiqllvpyldbsvl.supabase.co';
+    var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZreWxoZWZpcWxsdnB5bGRic3ZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjg3MzEsImV4cCI6MjA4NTY0NDczMX0.mPgzifo5jAKioeds-Zmy08bPH-64qV7PqvRMncxRL9E';
+    var supabaseClient = null;
+    if (window.supabase && typeof window.supabase.createClient === 'function') {
+      supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      console.log('✅ Supabase initialized successfully');
+    } else {
+      console.log('❌ Supabase not available');
+    }
+  </script>
   <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
     * {
@@ -141,20 +153,10 @@
     const { useState, useEffect, useReducer, useCallback, useRef } = React;
 
     // ============================================
-    // SUPABASE CONFIG (Replace with your credentials)
+    // SUPABASE CLIENT (initialized in head before Babel)
     // ============================================
-    const SUPABASE_URL = 'https://fkylhefiqllvpyldbsvl.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZreWxoZWZpcWxsdnB5bGRic3ZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjg3MzEsImV4cCI6MjA4NTY0NDczMX0.mPgzifo5jAKioeds-Zmy08bPH-64qV7PqvRMncxRL9E';
-
-    // Supabase client (optional - works without it in demo mode)
-    let supabase = null;
-    try {
-      if (window.supabase && SUPABASE_URL !== 'https://your-project.supabase.co') {
-        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      }
-    } catch (e) {
-      console.log('Supabase not configured - running in demo mode');
-    }
+    const supabase = window.supabaseClient;
+    console.log('Supabase in React:', supabase ? '✅ CONNECTED' : '❌ NOT AVAILABLE');
 
     // ============================================
     // DATOS
