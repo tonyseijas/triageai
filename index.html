@@ -248,6 +248,9 @@
     // Static QR code image (pre-generated for the URL above)
     const QR_IMAGE_URL = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://triageai-git-main-tony-seijas-projects.vercel.app';
 
+    // LocalStorage key for shared session state
+    const SESSION_STORAGE_KEY = 'triageai_session';
+
     const generateSessionCode = () => FIXED_SESSION_CODE;
 
     const triggerHaptic = (type = 'light') => {
@@ -255,6 +258,40 @@
         const patterns = { light: [10], medium: [20], heavy: [30], success: [10, 50, 10] };
         navigator.vibrate(patterns[type] || patterns.light);
       }
+    };
+
+    // Shared session sync via localStorage (for multi-device on same network)
+    const saveSessionToStorage = (sessionData) => {
+      try {
+        localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({
+          ...sessionData,
+          updatedAt: Date.now()
+        }));
+      } catch (e) {
+        console.log('Could not save session to storage');
+      }
+    };
+
+    const loadSessionFromStorage = () => {
+      try {
+        const data = localStorage.getItem(SESSION_STORAGE_KEY);
+        if (data) {
+          const parsed = JSON.parse(data);
+          // Session is valid if updated in last 2 hours
+          if (Date.now() - parsed.updatedAt < 2 * 60 * 60 * 1000) {
+            return parsed;
+          }
+        }
+      } catch (e) {
+        console.log('Could not load session from storage');
+      }
+      return null;
+    };
+
+    const clearSessionStorage = () => {
+      try {
+        localStorage.removeItem(SESSION_STORAGE_KEY);
+      } catch (e) {}
     };
 
     // ============================================
@@ -270,31 +307,65 @@
     };
 
     function reducer(state, action) {
+      let newState;
       switch (action.type) {
         case 'CREATE_SESSION':
-          return { ...state, session: { ...state.session, id: action.payload.id, code: action.payload.code, status: 'waiting' }, view: 'facilitator-setup' };
+          newState = { ...state, session: { ...state.session, id: action.payload.id, code: action.payload.code, status: 'waiting' }, view: 'facilitator-setup' };
+          saveSessionToStorage({ session: newState.session, participants: [], votes: {} });
+          return newState;
         case 'JOIN_SESSION':
-          const newParticipant = { id: `p-${Date.now()}`, alias: action.payload.alias || `USER_${String(state.participants.length + 1).padStart(3, '0')}`, joinedAt: new Date() };
-          return { ...state, participants: [...state.participants, newParticipant], currentParticipant: newParticipant, view: state.session.status === 'active' ? 'participant-voting' : 'participant-waiting' };
+          // Load session from storage to get current state
+          const storedSession = loadSessionFromStorage();
+          const sessionStatus = storedSession?.session?.status || 'waiting';
+          const sessionData = storedSession?.session || state.session;
+          const existingParticipants = storedSession?.participants || [];
+          const existingVotes = storedSession?.votes || {};
+
+          const newParticipant = { id: `p-${Date.now()}`, alias: action.payload.alias || `USER_${String(existingParticipants.length + 1).padStart(3, '0')}`, joinedAt: new Date() };
+          const updatedParticipants = [...existingParticipants, newParticipant];
+
+          newState = {
+            ...state,
+            session: { ...sessionData, status: sessionStatus },
+            participants: updatedParticipants,
+            votes: existingVotes,
+            currentParticipant: newParticipant,
+            view: sessionStatus === 'active' ? 'participant-voting' : 'participant-waiting'
+          };
+          saveSessionToStorage({ session: newState.session, participants: updatedParticipants, votes: existingVotes });
+          return newState;
         case 'START_SESSION':
-          return { ...state, session: { ...state.session, status: 'active', currentQuestion: 0 }, view: state.view === 'facilitator-setup' ? 'facilitator-live' : 'participant-voting' };
+          newState = { ...state, session: { ...state.session, status: 'active', currentQuestion: 0 }, view: state.view === 'facilitator-setup' ? 'facilitator-live' : 'participant-voting' };
+          saveSessionToStorage({ session: newState.session, participants: state.participants, votes: state.votes });
+          return newState;
         case 'ADVANCE_QUESTION':
           const nextQ = state.session.currentQuestion + 1;
-          if (nextQ >= QUESTIONS.length) return { ...state, session: { ...state.session, status: 'finished' }, view: state.view.startsWith('facilitator') ? 'facilitator-results' : 'participant-results' };
-          return { ...state, session: { ...state.session, currentQuestion: nextQ } };
+          if (nextQ >= QUESTIONS.length) {
+            newState = { ...state, session: { ...state.session, status: 'finished' }, view: state.view.startsWith('facilitator') ? 'facilitator-results' : 'participant-results' };
+          } else {
+            newState = { ...state, session: { ...state.session, currentQuestion: nextQ } };
+          }
+          saveSessionToStorage({ session: newState.session, participants: state.participants, votes: state.votes });
+          return newState;
         case 'VOTE':
-          return { ...state, votes: { ...state.votes, [`${action.payload.participantId}-${action.payload.questionIndex}`]: action.payload.vote } };
+          const updatedVotes = { ...state.votes, [`${action.payload.participantId}-${action.payload.questionIndex}`]: action.payload.vote };
+          saveSessionToStorage({ session: state.session, participants: state.participants, votes: updatedVotes });
+          return { ...state, votes: updatedVotes };
         case 'UPDATE_CONFIG':
-          return { ...state, session: { ...state.session, config: { ...state.session.config, ...action.payload } } };
+          newState = { ...state, session: { ...state.session, config: { ...state.session.config, ...action.payload } } };
+          saveSessionToStorage({ session: newState.session, participants: state.participants, votes: state.votes });
+          return newState;
         case 'ADD_SIMULATED_PARTICIPANTS':
           const simulated = Array.from({ length: action.payload.count }, (_, i) => ({ id: `sim-${Date.now()}-${i}`, alias: `USER_${String(state.participants.length + i + 1).padStart(3, '0')}`, joinedAt: new Date(), isSimulated: true }));
-          return { ...state, participants: [...state.participants, ...simulated] };
+          const withSimulated = [...state.participants, ...simulated];
+          saveSessionToStorage({ session: state.session, participants: withSimulated, votes: state.votes });
+          return { ...state, participants: withSimulated };
         case 'SIMULATE_VOTES':
-          const newVotes = { ...state.votes };
+          const simulatedVotes = { ...state.votes };
           state.participants.forEach(p => {
             if (p.isSimulated) {
               const voteKey = `${p.id}-${action.payload.questionIndex}`;
-              if (!newVotes[voteKey]) {
+              if (!simulatedVotes[voteKey]) {
                 const question = QUESTIONS[action.payload.questionIndex];
                 const rand = Math.random();
                 let vote;
@@ -302,11 +373,12 @@
                 else if (question.block === 'research') vote = rand < 0.3 ? 'auto' : rand < 0.7 ? 'augmented' : 'human';
                 else if (question.block === 'estrategia') vote = rand < 0.15 ? 'auto' : rand < 0.5 ? 'augmented' : 'human';
                 else vote = rand < 0.05 ? 'auto' : rand < 0.25 ? 'augmented' : 'human';
-                newVotes[voteKey] = vote;
+                simulatedVotes[voteKey] = vote;
               }
             }
           });
-          return { ...state, votes: newVotes };
+          saveSessionToStorage({ session: state.session, participants: state.participants, votes: simulatedVotes });
+          return { ...state, votes: simulatedVotes };
         case 'SET_VIEW':
           return { ...state, view: action.payload };
         case 'SET_ERROR':
@@ -314,8 +386,11 @@
         case 'CLEAR_ERROR':
           return { ...state, error: null };
         case 'END_SESSION':
-          return { ...state, session: { ...state.session, status: 'finished' }, view: state.view.startsWith('facilitator') ? 'facilitator-results' : 'participant-results' };
+          newState = { ...state, session: { ...state.session, status: 'finished' }, view: state.view.startsWith('facilitator') ? 'facilitator-results' : 'participant-results' };
+          saveSessionToStorage({ session: newState.session, participants: state.participants, votes: state.votes });
+          return newState;
         case 'RESET':
+          clearSessionStorage();
           return initialState;
         case 'SYNC_SESSION':
           return { ...state, session: { ...state.session, ...action.payload } };
@@ -903,6 +978,18 @@
     }
 
     function ParticipantWaiting({ session, participantCount, dispatch, supabaseApi }) {
+      // Poll localStorage to detect when facilitator starts the session
+      useEffect(() => {
+        const pollInterval = setInterval(() => {
+          const storedData = loadSessionFromStorage();
+          if (storedData?.session?.status === 'active') {
+            dispatch({ type: 'START_SESSION' });
+          }
+        }, 1000); // Check every second
+
+        return () => clearInterval(pollInterval);
+      }, [dispatch]);
+
       const handleStartDemo = () => {
         dispatch({ type: 'ADD_SIMULATED_PARTICIPANTS', payload: { count: 25 } });
         dispatch({ type: 'START_SESSION' });
@@ -975,6 +1062,25 @@
       const [hasVotedThisQuestion, setHasVotedThisQuestion] = useState(false);
       const prevQuestionRef = useRef(session.currentQuestion);
 
+      // Poll localStorage to sync with facilitator's question advances
+      useEffect(() => {
+        const pollInterval = setInterval(() => {
+          const storedData = loadSessionFromStorage();
+          if (storedData?.session) {
+            // Check if session ended
+            if (storedData.session.status === 'finished') {
+              dispatch({ type: 'END_SESSION' });
+            }
+            // Check if question advanced
+            else if (storedData.session.currentQuestion !== session.currentQuestion) {
+              dispatch({ type: 'SYNC_SESSION', payload: storedData.session });
+            }
+          }
+        }, 1000);
+
+        return () => clearInterval(pollInterval);
+      }, [dispatch, session.currentQuestion]);
+
       // Reset vote state when question changes
       useEffect(() => {
         if (prevQuestionRef.current !== session.currentQuestion) {
@@ -994,22 +1100,10 @@
         if (hasVotedThisQuestion) return;
         setHasVotedThisQuestion(true);
 
-        // Submit to Supabase if connected
-        if (supabaseApi.isConnected && session.id) {
-          await supabaseApi.submitVoteToDB(session.id, currentParticipant.id, session.currentQuestion, voteType);
-        }
-
-        // Update local state
+        // Update local state and sync to localStorage
         dispatch({ type: 'VOTE', payload: { participantId: currentParticipant.id, questionIndex: session.currentQuestion, vote: voteType } });
 
-        // Only auto-advance in demo mode (facilitator controls in real-time mode)
-        if (!supabaseApi.isConnected) {
-          setTimeout(() => {
-            dispatch({ type: 'SIMULATE_VOTES', payload: { questionIndex: session.currentQuestion } });
-            dispatch({ type: 'ADVANCE_QUESTION' });
-            setCardKey(k => k + 1);
-          }, 400);
-        }
+        // Facilitator controls question advancement - participant just waits
       };
 
       const handleVote = useCallback((voteType) => {
