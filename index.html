@@ -1536,8 +1536,8 @@
 
     function FacilitatorResults({ state, dispatch }) {
       const { participants, votes } = state;
-      const [viewMode, setViewMode] = useState('consensus');
 
+      // Calculate results per question
       const resultsPerQuestion = QUESTIONS.map((q, qIndex) => {
         const counts = { auto: 0, augmented: 0, human: 0, total: 0 };
         participants.forEach(p => { const vote = votes[`${p.id}-${qIndex}`]; if (vote) { counts[vote]++; counts.total++; } });
@@ -1547,8 +1547,7 @@
         return { question: q, counts, consensus, winner };
       });
 
-      const sortedByConsensus = [...resultsPerQuestion].sort((a, b) => b.consensus - a.consensus);
-
+      // Calculate results by block/round
       const resultsByBlock = {};
       Object.keys(BLOCKS).forEach(block => { resultsByBlock[block] = { auto: 0, augmented: 0, human: 0, total: 0 }; });
       resultsPerQuestion.forEach(r => {
@@ -1557,6 +1556,44 @@
         resultsByBlock[r.question.block].human += r.counts.human;
         resultsByBlock[r.question.block].total += r.counts.total;
       });
+
+      // Calculate global totals
+      const globalTotals = { auto: 0, augmented: 0, human: 0, total: 0 };
+      resultsPerQuestion.forEach(r => {
+        globalTotals.auto += r.counts.auto;
+        globalTotals.augmented += r.counts.augmented;
+        globalTotals.human += r.counts.human;
+        globalTotals.total += r.counts.total;
+      });
+
+      // Calculate participant profiles (mindsets)
+      const participantProfiles = participants.map(p => {
+        const pVotes = { auto: 0, augmented: 0, human: 0 };
+        QUESTIONS.forEach((q, i) => {
+          const vote = votes[`${p.id}-${i}`];
+          if (vote) pVotes[vote]++;
+        });
+        const total = pVotes.auto + pVotes.augmented + pVotes.human;
+        if (total === 0) return null;
+        const dominant = pVotes.auto >= pVotes.augmented && pVotes.auto >= pVotes.human ? 'auto' : pVotes.augmented >= pVotes.human ? 'augmented' : 'human';
+        return { ...p, votes: pVotes, dominant, total };
+      }).filter(Boolean);
+
+      // Count mindset distribution
+      const mindsetCounts = { auto: 0, augmented: 0, human: 0 };
+      participantProfiles.forEach(p => mindsetCounts[p.dominant]++);
+
+      // Percentages
+      const pctAuto = globalTotals.total > 0 ? Math.round((globalTotals.auto / globalTotals.total) * 100) : 0;
+      const pctAugmented = globalTotals.total > 0 ? Math.round((globalTotals.augmented / globalTotals.total) * 100) : 0;
+      const pctHuman = globalTotals.total > 0 ? Math.round((globalTotals.human / globalTotals.total) * 100) : 0;
+
+      // Dominant mindset labels
+      const MINDSET_LABELS = {
+        auto: { name: 'Automatizadores', desc: 'Confían en delegar a la IA' },
+        augmented: { name: 'Colaboradores', desc: 'Prefieren trabajar con IA' },
+        human: { name: 'Humanistas', desc: 'Priorizan el criterio humano' }
+      };
 
       const handleExport = () => {
         let csv = 'Ronda,Bloque,Pregunta,Automatizable,Aumentada,Humana,Total,Consenso\n';
@@ -1567,112 +1604,168 @@
 
       return (
         <div className="scanline" style={{ minHeight: '100vh', padding: '24px' }}>
-          <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '48px' }}>
+          <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
+
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '40px' }}>
               <div className="animate-fadeInUp">
-                <h1 className="gradient-text" style={{ fontSize: '48px', fontWeight: '900', marginBottom: '8px' }}>RESULTADOS</h1>
-                <p style={{ color: '#666', fontFamily: 'monospace' }}>{String(participants.length).padStart(3, '0')} participantes · {QUESTIONS.length} preguntas</p>
+                <div style={{ fontSize: '12px', color: '#666', letterSpacing: '3px', marginBottom: '8px' }}>RESULTADOS DE LA SESIÓN</div>
+                <h1 className="gradient-text" style={{ fontSize: '42px', fontWeight: '900', marginBottom: '4px' }}>¿Cómo vemos el futuro del trabajo?</h1>
+                <p style={{ color: '#555', fontSize: '14px' }}>{participants.length} participantes · {QUESTIONS.length} tareas evaluadas · {globalTotals.total} votos</p>
               </div>
               <div style={{ display: 'flex', gap: '12px' }}>
-                <button onClick={handleExport} className="hover-lift" style={{ padding: '12px 20px', border: '1px solid #333', background: 'transparent', color: '#fff', cursor: 'pointer', borderRadius: '8px' }}>📊 CSV</button>
-                <button onClick={() => dispatch({ type: 'RESET' })} className="hover-lift" style={{ padding: '12px 20px', background: '#fff', color: '#000', fontWeight: 'bold', border: 'none', cursor: 'pointer', borderRadius: '8px' }}>NUEVA SESIÓN</button>
+                <button onClick={handleExport} className="hover-lift" style={{ padding: '10px 16px', border: '1px solid #333', background: 'transparent', color: '#888', cursor: 'pointer', borderRadius: '8px', fontSize: '13px' }}>📊 Exportar</button>
+                <button onClick={() => dispatch({ type: 'RESET' })} className="hover-lift" style={{ padding: '10px 16px', background: '#fff', color: '#000', fontWeight: 'bold', border: 'none', cursor: 'pointer', borderRadius: '8px', fontSize: '13px' }}>Nueva sesión</button>
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '32px' }}>
-              {[['consensus', '📊 CONSENSO'], ['heatmap', '🗺️ RONDAS']].map(([id, label]) => (
-                <button key={id} onClick={() => setViewMode(id)} className="hover-lift" style={{ padding: '12px 24px', background: viewMode === id ? '#fff' : 'transparent', color: viewMode === id ? '#000' : '#fff', fontWeight: 'bold', border: viewMode === id ? 'none' : '1px solid #333', cursor: 'pointer', borderRadius: '8px' }}>{label}</button>
-              ))}
+            {/* SECTION 1: Global KPIs */}
+            <div style={{ marginBottom: '48px' }}>
+              <div style={{ fontSize: '11px', color: '#666', letterSpacing: '2px', marginBottom: '20px' }}>VISIÓN GLOBAL</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+                {[
+                  { type: 'auto', label: 'Automatizable', desc: 'La IA puede hacerlo sola' },
+                  { type: 'augmented', label: 'Aumentada', desc: 'Humano + IA colaborando' },
+                  { type: 'human', label: 'Humana', desc: 'Requiere criterio humano' }
+                ].map(({ type, label, desc }) => {
+                  const pct = type === 'auto' ? pctAuto : type === 'augmented' ? pctAugmented : pctHuman;
+                  const voteType = VOTE_TYPES[type];
+                  return (
+                    <div key={type} style={{
+                      background: `linear-gradient(135deg, ${voteType.bgColor} 0%, #0a0a0a 100%)`,
+                      border: `1px solid ${voteType.borderColor}30`,
+                      borderRadius: '20px',
+                      padding: '28px',
+                      textAlign: 'center'
+                    }}>
+                      <div style={{ fontSize: '48px', marginBottom: '8px' }}>{voteType.pixel}</div>
+                      <div style={{ fontSize: '56px', fontWeight: '900', color: voteType.color, fontFamily: 'monospace', lineHeight: 1 }}>{pct}%</div>
+                      <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#fff', marginTop: '8px' }}>{label}</div>
+                      <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>{desc}</div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
-            {viewMode === 'consensus' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                <div style={{ border: '2px solid #333', padding: '32px', borderRadius: '16px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#666', letterSpacing: '2px', marginBottom: '24px' }}>
-                    <span style={{ color: '#34d399' }}>●</span> ALTO CONSENSO (&gt;70%)
-                  </div>
-                  {sortedByConsensus.filter(r => r.consensus >= 0.7).map((r, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '24px', padding: '20px', border: '1px solid #333', borderRadius: '12px', marginBottom: '12px' }}>
-                      <span style={{ fontSize: '36px' }}>{VOTE_TYPES[r.winner].pixel}</span>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 'bold' }}>{r.question.text}</div>
-                        <div style={{ fontSize: '14px', color: '#666' }}>{BLOCKS[r.question.block].emoji} {BLOCKS[r.question.block].name}</div>
-                      </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: '32px', fontWeight: '900', fontFamily: 'monospace', color: VOTE_TYPES[r.winner].color }}>{Math.round(r.consensus * 100)}%</div>
-                        <div style={{ fontSize: '12px', color: '#666' }}>{VOTE_TYPES[r.winner].label}</div>
-                      </div>
+            {/* SECTION 2: Mindset Distribution */}
+            <div style={{ marginBottom: '48px' }}>
+              <div style={{ fontSize: '11px', color: '#666', letterSpacing: '2px', marginBottom: '20px' }}>PERFILES DE LOS PARTICIPANTES</div>
+              <div style={{ background: '#0a0a0a', border: '1px solid #222', borderRadius: '20px', padding: '28px' }}>
+                <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
+                  {/* Visual distribution bar */}
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', height: '64px', borderRadius: '12px', overflow: 'hidden', marginBottom: '16px' }}>
+                      {participants.length > 0 && (
+                        <>
+                          <div style={{ width: `${(mindsetCounts.auto / participants.length) * 100}%`, background: 'linear-gradient(180deg, #fff 0%, #aaa 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: mindsetCounts.auto > 0 ? '60px' : '0' }}>
+                            {mindsetCounts.auto > 0 && <span style={{ fontSize: '24px' }}>🤖</span>}
+                          </div>
+                          <div style={{ width: `${(mindsetCounts.augmented / participants.length) * 100}%`, background: 'linear-gradient(180deg, #a78bfa 0%, #7c3aed 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: mindsetCounts.augmented > 0 ? '60px' : '0' }}>
+                            {mindsetCounts.augmented > 0 && <span style={{ fontSize: '24px' }}>🤝</span>}
+                          </div>
+                          <div style={{ width: `${(mindsetCounts.human / participants.length) * 100}%`, background: 'linear-gradient(180deg, #f97316 0%, #c2410c 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: mindsetCounts.human > 0 ? '60px' : '0' }}>
+                            {mindsetCounts.human > 0 && <span style={{ fontSize: '24px' }}>✋</span>}
+                          </div>
+                        </>
+                      )}
                     </div>
-                  ))}
-                  {sortedByConsensus.filter(r => r.consensus >= 0.7).length === 0 && <div style={{ color: '#555', textAlign: 'center', padding: '32px' }}>Sin consenso alto</div>}
-                </div>
-
-                <div style={{ border: '2px solid #333', padding: '32px', borderRadius: '16px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#666', letterSpacing: '2px', marginBottom: '24px' }}>
-                    <span style={{ color: '#fbbf24' }}>●</span> DIVISIÓN (&lt;50%)
-                  </div>
-                  {sortedByConsensus.filter(r => r.consensus < 0.5).map((r, i) => (
-                    <div key={i} style={{ padding: '20px', border: '1px solid #333', borderRadius: '12px', marginBottom: '12px' }}>
-                      <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>{r.question.text}</div>
-                      <div style={{ display: 'flex', height: '32px', borderRadius: '8px', overflow: 'hidden' }}>
-                        <div style={{ width: `${(r.counts.auto / r.counts.total) * 100}%`, background: 'linear-gradient(90deg, #fff 0%, #ccc 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', fontSize: '12px', fontWeight: 'bold' }}>{Math.round((r.counts.auto / r.counts.total) * 100) > 15 && `${Math.round((r.counts.auto / r.counts.total) * 100)}%`}</div>
-                        <div style={{ width: `${(r.counts.augmented / r.counts.total) * 100}%`, background: 'linear-gradient(90deg, #a78bfa 0%, #7c3aed 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '12px', fontWeight: 'bold' }}>{Math.round((r.counts.augmented / r.counts.total) * 100) > 15 && `${Math.round((r.counts.augmented / r.counts.total) * 100)}%`}</div>
-                        <div style={{ width: `${(r.counts.human / r.counts.total) * 100}%`, background: 'linear-gradient(90deg, #f97316 0%, #c2410c 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '12px', fontWeight: 'bold' }}>{Math.round((r.counts.human / r.counts.total) * 100) > 15 && `${Math.round((r.counts.human / r.counts.total) * 100)}%`}</div>
-                      </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      {['auto', 'augmented', 'human'].map(type => (
+                        <div key={type} style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: '24px', fontWeight: '900', color: VOTE_TYPES[type].color }}>{mindsetCounts[type]}</div>
+                          <div style={{ fontSize: '11px', color: '#666' }}>{MINDSET_LABELS[type].name}</div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                  {sortedByConsensus.filter(r => r.consensus < 0.5).length === 0 && <div style={{ color: '#555', textAlign: 'center', padding: '32px' }}>Buen consenso en todo</div>}
+                  </div>
                 </div>
               </div>
-            )}
+            </div>
 
-            {viewMode === 'heatmap' && (
-              <div style={{ border: '2px solid #333', padding: '32px', borderRadius: '16px' }}>
-                <div style={{ fontSize: '12px', color: '#666', letterSpacing: '2px', marginBottom: '32px' }}>RESULTADOS POR RONDA</div>
+            {/* SECTION 3: Results by Round */}
+            <div style={{ marginBottom: '48px' }}>
+              <div style={{ fontSize: '11px', color: '#666', letterSpacing: '2px', marginBottom: '20px' }}>RESULTADOS POR ÁREA</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {Object.entries(BLOCKS).map(([blockId, blockInfo], index) => {
                   const data = resultsByBlock[blockId];
                   const total = data.total || 1;
+                  const pAuto = Math.round((data.auto / total) * 100);
+                  const pAugmented = Math.round((data.augmented / total) * 100);
+                  const pHuman = Math.round((data.human / total) * 100);
                   const roundQuestions = getQuestionsForRound(index + 1);
+
                   return (
-                    <div key={blockId} style={{ marginBottom: '40px', padding: '24px', background: '#0a0a0a', borderRadius: '16px', border: `1px solid ${blockInfo.color}30` }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                        <span style={{ fontSize: '32px' }}>{blockInfo.emoji}</span>
-                        <div>
-                          <div style={{ fontSize: '10px', color: '#666', letterSpacing: '2px' }}>RONDA {index + 1}</div>
-                          <span style={{ fontWeight: 'bold', letterSpacing: '1px', color: blockInfo.color, fontSize: '18px' }}>{blockInfo.name}</span>
+                    <div key={blockId} style={{ background: '#0a0a0a', border: `1px solid ${blockInfo.color}30`, borderRadius: '16px', overflow: 'hidden' }}>
+                      {/* Header */}
+                      <div style={{ padding: '20px 24px', borderBottom: `1px solid ${blockInfo.color}20`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <span style={{ fontSize: '28px' }}>{blockInfo.emoji}</span>
+                          <div>
+                            <div style={{ fontWeight: 'bold', color: blockInfo.color, fontSize: '16px' }}>{blockInfo.name}</div>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '20px' }}>
+                          <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: '20px', fontWeight: '900', color: '#fff' }}>{pAuto}%</div>
+                            <div style={{ fontSize: '10px', color: '#666' }}>🤖 Auto</div>
+                          </div>
+                          <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: '20px', fontWeight: '900', color: '#a78bfa' }}>{pAugmented}%</div>
+                            <div style={{ fontSize: '10px', color: '#666' }}>🤝 Aumen</div>
+                          </div>
+                          <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: '20px', fontWeight: '900', color: '#f97316' }}>{pHuman}%</div>
+                            <div style={{ fontSize: '10px', color: '#666' }}>✋ Human</div>
+                          </div>
                         </div>
                       </div>
-                      <div style={{ display: 'flex', height: '56px', borderRadius: '12px', overflow: 'hidden', marginBottom: '16px' }}>
-                        <div style={{ width: `${(data.auto / total) * 100}%`, background: 'linear-gradient(90deg, #fff 0%, #ccc 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', fontWeight: 'bold', fontSize: '16px' }}>{Math.round((data.auto / total) * 100) > 10 && `🤖 ${Math.round((data.auto / total) * 100)}%`}</div>
-                        <div style={{ width: `${(data.augmented / total) * 100}%`, background: 'linear-gradient(90deg, #a78bfa 0%, #7c3aed 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '16px' }}>{Math.round((data.augmented / total) * 100) > 10 && `🤝 ${Math.round((data.augmented / total) * 100)}%`}</div>
-                        <div style={{ width: `${(data.human / total) * 100}%`, background: 'linear-gradient(90deg, #f97316 0%, #c2410c 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '16px' }}>{Math.round((data.human / total) * 100) > 10 && `✋ ${Math.round((data.human / total) * 100)}%`}</div>
-                      </div>
-                      {/* Individual questions in this round */}
-                      <div style={{ display: 'grid', gap: '8px' }}>
-                        {roundQuestions.map((q) => {
-                          const qResult = resultsPerQuestion.find(r => r.question.index === q.index);
-                          if (!qResult) return null;
-                          return (
-                            <div key={q.index} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 12px', background: '#111', borderRadius: '8px' }}>
-                              <span style={{ fontSize: '20px' }}>{VOTE_TYPES[qResult.winner].pixel}</span>
-                              <span style={{ flex: 1, fontSize: '13px', color: '#ccc' }}>{q.text}</span>
-                              <span style={{ fontFamily: 'monospace', fontSize: '14px', fontWeight: 'bold', color: VOTE_TYPES[qResult.winner].color }}>{Math.round(qResult.consensus * 100)}%</span>
-                            </div>
-                          );
-                        })}
+                      {/* Questions */}
+                      <div style={{ padding: '16px 24px' }}>
+                        <div style={{ display: 'grid', gap: '8px' }}>
+                          {roundQuestions.map((q) => {
+                            const qResult = resultsPerQuestion.find(r => r.question.index === q.index);
+                            if (!qResult) return null;
+                            const qTotal = qResult.counts.total || 1;
+                            return (
+                              <div key={q.index} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <span style={{ fontSize: '18px', width: '28px' }}>{VOTE_TYPES[qResult.winner].pixel}</span>
+                                <span style={{ flex: 1, fontSize: '13px', color: '#aaa' }}>{q.text}</span>
+                                <div style={{ display: 'flex', width: '120px', height: '8px', borderRadius: '4px', overflow: 'hidden', background: '#222' }}>
+                                  <div style={{ width: `${(qResult.counts.auto / qTotal) * 100}%`, background: '#fff' }} />
+                                  <div style={{ width: `${(qResult.counts.augmented / qTotal) * 100}%`, background: '#a78bfa' }} />
+                                  <div style={{ width: `${(qResult.counts.human / qTotal) * 100}%`, background: '#f97316' }} />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
                   );
                 })}
               </div>
-            )}
-
-            <div style={{ marginTop: '48px', border: '2px solid #fff', padding: '48px', textAlign: 'center', borderRadius: '20px' }}>
-              <div style={{ fontSize: '12px', color: '#666', letterSpacing: '2px', marginBottom: '24px' }}>LA PREGUNTA INCÓMODA</div>
-              <p style={{ fontSize: '20px', fontWeight: 'bold', marginBottom: '16px' }}>"Mirad las tareas que habéis marcado como automatizables."</p>
-              <p className="gradient-text" style={{ fontSize: '36px', fontWeight: '900', marginBottom: '24px' }}>¿Qué porcentaje de vuestra última semana fue eso?</p>
-              <p style={{ color: '#666', maxWidth: '500px', margin: '0 auto' }}>Ese es el porcentaje de vuestro trabajo que está en riesgo si no os movéis hacia arriba.</p>
             </div>
+
+            {/* SECTION 4: The Uncomfortable Question */}
+            <div style={{ background: 'linear-gradient(135deg, #1a1a2e 0%, #0a0a0a 100%)', border: '2px solid #fff', borderRadius: '24px', padding: '48px', textAlign: 'center' }}>
+              <div style={{ fontSize: '11px', color: '#666', letterSpacing: '3px', marginBottom: '32px' }}>LA PREGUNTA INCÓMODA</div>
+
+              <div style={{ maxWidth: '600px', margin: '0 auto' }}>
+                <p style={{ fontSize: '24px', color: '#fff', lineHeight: 1.5, marginBottom: '32px' }}>
+                  Habéis identificado que el <span style={{ color: '#fff', fontWeight: '900', fontSize: '32px' }}>{pctAuto}%</span> de estas tareas podrían ser automatizables.
+                </p>
+
+                <p className="gradient-text" style={{ fontSize: '40px', fontWeight: '900', lineHeight: 1.2, marginBottom: '32px' }}>
+                  ¿Cómo de lejos estamos de eso?
+                </p>
+
+                <p style={{ color: '#666', fontSize: '16px', lineHeight: 1.6 }}>
+                  La distancia entre lo que creemos posible y lo que realmente hacemos es donde está la oportunidad.
+                </p>
+              </div>
+            </div>
+
           </div>
         </div>
       );
