@@ -1114,6 +1114,7 @@
       const question = QUESTIONS[session.currentQuestion];
       const [cardKey, setCardKey] = useState(0);
       const [hasVotedThisQuestion, setHasVotedThisQuestion] = useState(false);
+      const [timerKey, setTimerKey] = useState(0);
       const prevQuestionRef = useRef(session.currentQuestion);
       const currentRound = getCurrentRound(session.currentQuestion);
 
@@ -1122,6 +1123,7 @@
         if (prevQuestionRef.current !== session.currentQuestion) {
           setHasVotedThisQuestion(false);
           setCardKey(k => k + 1);
+          setTimerKey(k => k + 1);
           prevQuestionRef.current = session.currentQuestion;
         }
       }, [session.currentQuestion]);
@@ -1131,6 +1133,13 @@
         const vote = votes[`${currentParticipant?.id}-${i}`];
         if (vote) myCounts[vote]++;
       });
+
+      const advanceToNext = () => {
+        dispatch({ type: 'SIMULATE_VOTES', payload: { questionIndex: session.currentQuestion } });
+        dispatch({ type: 'ADVANCE_QUESTION' });
+        setCardKey(k => k + 1);
+        setTimerKey(k => k + 1);
+      };
 
       const submitVote = async (voteType) => {
         if (hasVotedThisQuestion) return;
@@ -1143,15 +1152,6 @@
 
         // Update local state
         dispatch({ type: 'VOTE', payload: { participantId: currentParticipant.id, questionIndex: session.currentQuestion, vote: voteType } });
-
-        // Only auto-advance in demo mode (facilitator controls in real-time mode)
-        if (!supabaseApi.isConnected) {
-          setTimeout(() => {
-            dispatch({ type: 'SIMULATE_VOTES', payload: { questionIndex: session.currentQuestion } });
-            dispatch({ type: 'ADVANCE_QUESTION' });
-            setCardKey(k => k + 1);
-          }, 400);
-        }
       };
 
       const handleVote = useCallback((voteType) => {
@@ -1162,6 +1162,15 @@
         triggerHaptic('medium');
         submitVote(voteType);
       };
+
+      const handleTimeUp = useCallback(() => {
+        // Auto-vote if not voted yet
+        if (!hasVotedThisQuestion) {
+          const randomVote = ['auto', 'augmented', 'human'][Math.floor(Math.random() * 3)];
+          dispatch({ type: 'VOTE', payload: { participantId: currentParticipant.id, questionIndex: session.currentQuestion, vote: randomVote } });
+        }
+        setTimeout(() => advanceToNext(), 500);
+      }, [session.currentQuestion, hasVotedThisQuestion, currentParticipant]);
 
       // Calculate progress within current round
       const questionInRound = (session.currentQuestion % QUESTIONS_PER_ROUND) + 1;
@@ -1174,7 +1183,7 @@
             votes={votes}
             participants={participants}
             onContinue={() => dispatch({ type: 'CONTINUE_FROM_SUMMARY' })}
-            isParticipant={true}
+            isParticipant={false}
           />
         );
       }
@@ -1185,7 +1194,17 @@
             <div style={{ maxWidth: '400px', margin: '0 auto' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#666', marginBottom: '8px', fontFamily: 'monospace' }}>
                 <span>RONDA {currentRound}/3 · {questionInRound}/{QUESTIONS_PER_ROUND}</span>
-                <span>{BLOCKS[question.block].emoji} {BLOCKS[question.block].name}</span>
+                <span>{BLOCKS[question.block].emoji}</span>
+              </div>
+              {/* Timer */}
+              <div style={{ marginBottom: '8px' }}>
+                <PixelTimer
+                  key={timerKey}
+                  seconds={session.config.secondsPerQuestion}
+                  maxSeconds={session.config.secondsPerQuestion}
+                  onComplete={handleTimeUp}
+                  isPaused={false}
+                />
               </div>
               {/* Round-based progress bar */}
               <div style={{ display: 'flex', gap: '8px' }}>
@@ -1225,7 +1244,14 @@
               <div style={{ fontSize: '10px', fontWeight: 'bold', letterSpacing: '1px', color: '#a78bfa' }}>AUMENTADA</div>
             </div>
 
-            <SwipeCard key={`${session.currentQuestion}-${cardKey}`} question={question} onVote={handleVote} disabled={false} />
+            <SwipeCard key={`${session.currentQuestion}-${cardKey}`} question={question} onVote={handleVote} disabled={hasVotedThisQuestion} />
+
+            {/* Voted indicator */}
+            {hasVotedThisQuestion && (
+              <div style={{ position: 'absolute', bottom: '100px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(52, 211, 153, 0.2)', border: '1px solid #34d399', padding: '12px 24px', borderRadius: '20px', color: '#34d399', fontSize: '14px', fontWeight: 'bold' }}>
+                ✓ Voto registrado
+              </div>
+            )}
           </div>
 
           <div style={{ padding: '16px', borderTop: '1px solid #222' }}>
