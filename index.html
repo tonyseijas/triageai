@@ -162,27 +162,31 @@
     // DATOS
     // ============================================
     const QUESTIONS = [
-      { index: 0, block: 'produccion', text: 'Redimensionar assets para 5 plataformas diferentes' },
-      { index: 1, block: 'produccion', text: 'Generar 10 variantes de un banner a partir de un brief' },
-      { index: 2, block: 'produccion', text: 'Escribir el microcopy de un flujo de checkout' },
-      { index: 3, block: 'produccion', text: 'Crear wireframes a partir de requisitos escritos' },
-      { index: 4, block: 'produccion', text: 'Documentar componentes en el design system' },
-      { index: 5, block: 'research', text: 'Transcribir entrevistas de usuario' },
-      { index: 6, block: 'research', text: 'Identificar los 5 temas principales en 20 entrevistas' },
-      { index: 7, block: 'research', text: 'Decidir qué preguntas hacer en la siguiente ronda de research' },
-      { index: 8, block: 'research', text: 'Interpretar por qué un usuario dice una cosa pero hace otra' },
-      { index: 9, block: 'research', text: 'Detectar frustración en la cara del usuario durante un test' },
-      { index: 10, block: 'estrategia', text: 'Priorizar el backlog cuando todo es "urgente"' },
-      { index: 11, block: 'estrategia', text: 'Decidir si lanzamos con bugs conocidos o retrasamos' },
-      { index: 12, block: 'estrategia', text: 'Elegir entre dos direcciones creativas igualmente válidas' },
-      { index: 13, block: 'estrategia', text: 'Calcular el impacto en conversión de un cambio de diseño' },
-      { index: 14, block: 'estrategia', text: 'Decir "no" a una petición de un stakeholder poderoso' },
-      { index: 15, block: 'coordinacion', text: 'Conseguir que desarrollo implemente el diseño tal como está especificado' },
-      { index: 16, block: 'coordinacion', text: 'Alinear a marketing y producto cuando quieren cosas opuestas' },
-      { index: 17, block: 'coordinacion', text: 'Presentar el trabajo a un comité de dirección' },
-      { index: 18, block: 'coordinacion', text: 'Gestionar un cliente difícil a lo largo de un proyecto' },
-      { index: 19, block: 'coordinacion', text: 'Defender tu decisión de diseño cuando el CEO opina diferente' },
+      // RONDA 1: Inteligencia y Análisis
+      { index: 0, block: 'inteligencia', round: 1, text: 'Hacer un benchmark del sector' },
+      { index: 1, block: 'inteligencia', round: 1, text: 'Identificar señales y tendencias para anticipar el futuro' },
+      { index: 2, block: 'inteligencia', round: 1, text: 'Construir dashboards con métricas de producto' },
+      { index: 3, block: 'inteligencia', round: 1, text: 'Transcripciones, actas y documentación del proyecto' },
+      { index: 4, block: 'inteligencia', round: 1, text: 'Identificación de perfiles clave (líderes de opinión, ICPs, candidatos...)' },
+      { index: 5, block: 'inteligencia', round: 1, text: 'Auditorías de accesibilidad' },
+      // RONDA 2: Definición y Decisión
+      { index: 6, block: 'definicion', round: 2, text: 'Definición de Product Requirements Document' },
+      { index: 7, block: 'definicion', round: 2, text: 'Preparar un business case para una nueva línea de trabajo' },
+      { index: 8, block: 'definicion', round: 2, text: 'Hacer un brief o RFP' },
+      { index: 9, block: 'definicion', round: 2, text: 'Generación, mantenimiento y evolución del backlog' },
+      { index: 10, block: 'definicion', round: 2, text: 'Definir qué funcionalidades entran en un MVP' },
+      { index: 11, block: 'definicion', round: 2, text: 'Brainstorming de nuevas ideas' },
+      // RONDA 3: Creación y Relación
+      { index: 12, block: 'creacion', round: 3, text: 'Onboarding a una nueva persona del equipo' },
+      { index: 13, block: 'creacion', round: 3, text: 'Entrevistar a usuarios' },
+      { index: 14, block: 'creacion', round: 3, text: 'Dailies y seguimiento de proyectos' },
+      { index: 15, block: 'creacion', round: 3, text: 'Escribir los textos de una web/app' },
+      { index: 16, block: 'creacion', round: 3, text: 'Dar feedback sobre un proyecto o una persona o equipo' },
+      { index: 17, block: 'creacion', round: 3, text: 'Generar imágenes o ilustraciones para un producto digital' },
     ];
+
+    const QUESTIONS_PER_ROUND = 6;
+    const TOTAL_ROUNDS = 3;
 
     const VOTE_TYPES = {
       auto: { id: 'auto', label: 'AUTOMATIZABLE', pixel: '🤖', description: 'La IA lo hace, yo reviso', color: '#fff', bgColor: 'rgba(255, 255, 255, 0.2)', borderColor: '#fff' },
@@ -191,11 +195,15 @@
     };
 
     const BLOCKS = {
-      produccion: { name: 'PRODUCCIÓN', tag: '01', color: '#34d399', emoji: '🎨' },
-      research: { name: 'RESEARCH', tag: '02', color: '#60a5fa', emoji: '🔍' },
-      estrategia: { name: 'ESTRATEGIA', tag: '03', color: '#fbbf24', emoji: '🎯' },
-      coordinacion: { name: 'COORDINACIÓN', tag: '04', color: '#a78bfa', emoji: '🤝' },
+      inteligencia: { name: 'INTELIGENCIA Y ANÁLISIS', tag: '01', color: '#60a5fa', emoji: '🔍', round: 1 },
+      definicion: { name: 'DEFINICIÓN Y DECISIÓN', tag: '02', color: '#fbbf24', emoji: '📐', round: 2 },
+      creacion: { name: 'CREACIÓN Y RELACIÓN', tag: '03', color: '#a78bfa', emoji: '🤝', round: 3 },
     };
+
+    // Helper to get current round based on question index
+    const getCurrentRound = (questionIndex) => Math.floor(questionIndex / QUESTIONS_PER_ROUND) + 1;
+    const isEndOfRound = (questionIndex) => (questionIndex + 1) % QUESTIONS_PER_ROUND === 0;
+    const getQuestionsForRound = (round) => QUESTIONS.filter(q => q.round === round);
 
     const generateSessionCode = () => {
       // Generate 3-character alphanumeric code (e.g., "A7K", "B3X")
@@ -218,7 +226,7 @@
     // REDUCER
     // ============================================
     const initialState = {
-      session: { id: null, code: null, status: 'idle', currentQuestion: 0, config: { autoAdvance: true, secondsPerQuestion: 12 } },
+      session: { id: null, code: null, status: 'idle', currentQuestion: 0, currentRound: 1, showRoundSummary: false, config: { autoAdvance: true, secondsPerQuestion: 12 } },
       participants: [],
       votes: {},
       view: 'landing',
@@ -238,7 +246,13 @@
         case 'ADVANCE_QUESTION':
           const nextQ = state.session.currentQuestion + 1;
           if (nextQ >= QUESTIONS.length) return { ...state, session: { ...state.session, status: 'finished' }, view: state.view.startsWith('facilitator') ? 'facilitator-results' : 'participant-results' };
-          return { ...state, session: { ...state.session, currentQuestion: nextQ } };
+          // Check if we just finished a round (every 6 questions)
+          if (isEndOfRound(state.session.currentQuestion)) {
+            return { ...state, session: { ...state.session, currentQuestion: nextQ, showRoundSummary: true, currentRound: getCurrentRound(nextQ) } };
+          }
+          return { ...state, session: { ...state.session, currentQuestion: nextQ, currentRound: getCurrentRound(nextQ) } };
+        case 'CONTINUE_FROM_SUMMARY':
+          return { ...state, session: { ...state.session, showRoundSummary: false } };
         case 'VOTE':
           return { ...state, votes: { ...state.votes, [`${action.payload.participantId}-${action.payload.questionIndex}`]: action.payload.vote } };
         case 'UPDATE_CONFIG':
@@ -580,6 +594,123 @@
       return (
         <div style={{ background: '#fff', padding: '16px', display: 'inline-block', borderRadius: '12px' }}>
           <canvas ref={canvasRef} style={{ display: 'block' }} />
+        </div>
+      );
+    };
+
+    // ============================================
+    // ROUND SUMMARY COMPONENT
+    // ============================================
+    const RoundSummary = ({ roundNumber, votes, participants, onContinue, isParticipant }) => {
+      const roundQuestions = getQuestionsForRound(roundNumber);
+      const blockKey = roundQuestions[0]?.block;
+      const blockInfo = BLOCKS[blockKey];
+
+      // Calculate votes for this round
+      const roundVotes = { auto: 0, augmented: 0, human: 0, total: 0 };
+      roundQuestions.forEach((q) => {
+        participants.forEach(p => {
+          const vote = votes[`${p.id}-${q.index}`];
+          if (vote) {
+            roundVotes[vote]++;
+            roundVotes.total++;
+          }
+        });
+      });
+
+      const getWinner = () => {
+        if (roundVotes.auto >= roundVotes.augmented && roundVotes.auto >= roundVotes.human) return 'auto';
+        if (roundVotes.augmented >= roundVotes.human) return 'augmented';
+        return 'human';
+      };
+      const winner = getWinner();
+      const winnerPercentage = roundVotes.total > 0 ? Math.round((roundVotes[winner] / roundVotes.total) * 100) : 0;
+
+      return (
+        <div className="scanline" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+          <div className="animate-fadeInUp" style={{ maxWidth: '500px', width: '100%', textAlign: 'center' }}>
+            <div style={{ marginBottom: '32px' }}>
+              <div style={{ fontSize: '14px', color: '#666', letterSpacing: '2px', marginBottom: '8px' }}>RONDA {roundNumber} COMPLETADA</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', marginBottom: '16px' }}>
+                <span style={{ fontSize: '48px' }}>{blockInfo?.emoji}</span>
+                <h2 style={{ fontSize: '28px', fontWeight: '900', color: blockInfo?.color }}>{blockInfo?.name}</h2>
+              </div>
+            </div>
+
+            <div className="glass" style={{ padding: '32px', marginBottom: '32px', borderRadius: '20px' }}>
+              <div style={{ fontSize: '12px', color: '#666', letterSpacing: '2px', marginBottom: '24px' }}>RESUMEN DE VOTACIONES</div>
+
+              {/* Winner highlight */}
+              <div style={{
+                background: VOTE_TYPES[winner].bgColor,
+                border: `2px solid ${VOTE_TYPES[winner].borderColor}`,
+                borderRadius: '16px',
+                padding: '24px',
+                marginBottom: '24px'
+              }}>
+                <div style={{ fontSize: '64px', marginBottom: '8px' }}>{VOTE_TYPES[winner].pixel}</div>
+                <div style={{ fontSize: '48px', fontWeight: '900', color: VOTE_TYPES[winner].color, marginBottom: '4px' }}>{winnerPercentage}%</div>
+                <div style={{ fontSize: '14px', color: '#888' }}>Tendencia dominante: <strong style={{ color: VOTE_TYPES[winner].color }}>{VOTE_TYPES[winner].label}</strong></div>
+              </div>
+
+              {/* All results */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+                {['auto', 'augmented', 'human'].map(type => {
+                  const percentage = roundVotes.total > 0 ? Math.round((roundVotes[type] / roundVotes.total) * 100) : 0;
+                  return (
+                    <div key={type} style={{
+                      padding: '16px',
+                      background: type === winner ? 'transparent' : '#111',
+                      borderRadius: '12px',
+                      border: type === winner ? `1px solid ${VOTE_TYPES[type].borderColor}40` : '1px solid #222'
+                    }}>
+                      <div style={{ fontSize: '28px', marginBottom: '4px' }}>{VOTE_TYPES[type].pixel}</div>
+                      <div style={{ fontSize: '24px', fontWeight: '900', color: VOTE_TYPES[type].color }}>{percentage}%</div>
+                      <div style={{ fontSize: '10px', color: '#666', letterSpacing: '1px' }}>{roundVotes[type]} votos</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {roundNumber < TOTAL_ROUNDS && (
+              <div style={{ marginBottom: '32px' }}>
+                <div style={{ fontSize: '12px', color: '#666', letterSpacing: '2px', marginBottom: '12px' }}>SIGUIENTE RONDA</div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
+                  <span style={{ fontSize: '32px' }}>{BLOCKS[Object.keys(BLOCKS)[roundNumber]]?.emoji}</span>
+                  <span style={{ fontSize: '18px', fontWeight: 'bold', color: BLOCKS[Object.keys(BLOCKS)[roundNumber]]?.color }}>
+                    {BLOCKS[Object.keys(BLOCKS)[roundNumber]]?.name}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {!isParticipant && (
+              <button
+                onClick={onContinue}
+                className="touch-feedback hover-lift"
+                style={{
+                  padding: '20px 48px',
+                  background: '#fff',
+                  color: '#000',
+                  fontSize: '18px',
+                  fontWeight: '900',
+                  border: 'none',
+                  cursor: 'pointer',
+                  borderRadius: '12px'
+                }}
+              >
+                {roundNumber < TOTAL_ROUNDS ? `COMENZAR RONDA ${roundNumber + 1} →` : 'VER RESULTADOS FINALES →'}
+              </button>
+            )}
+
+            {isParticipant && (
+              <div style={{ padding: '20px', border: '1px solid #333', borderRadius: '12px' }}>
+                <span className="animate-pulse" style={{ display: 'inline-block', width: '8px', height: '8px', background: '#34d399', borderRadius: '50%', marginRight: '12px' }}></span>
+                <span style={{ color: '#888' }}>Esperando al facilitador...</span>
+              </div>
+            )}
+          </div>
         </div>
       );
     };
@@ -978,11 +1109,26 @@
     }
 
     function ParticipantVoting({ state, dispatch, supabaseApi }) {
-      const { session, currentParticipant, votes } = state;
+      const { session, currentParticipant, votes, participants } = state;
       const question = QUESTIONS[session.currentQuestion];
       const [cardKey, setCardKey] = useState(0);
       const [hasVotedThisQuestion, setHasVotedThisQuestion] = useState(false);
       const prevQuestionRef = useRef(session.currentQuestion);
+      const currentRound = getCurrentRound(session.currentQuestion);
+
+      // Show round summary if needed
+      if (session.showRoundSummary) {
+        const completedRound = currentRound - 1;
+        return (
+          <RoundSummary
+            roundNumber={completedRound}
+            votes={votes}
+            participants={participants}
+            onContinue={() => dispatch({ type: 'CONTINUE_FROM_SUMMARY' })}
+            isParticipant={true}
+          />
+        );
+      }
 
       // Reset vote state when question changes
       useEffect(() => {
@@ -1030,17 +1176,35 @@
         submitVote(voteType);
       };
 
+      // Calculate progress within current round
+      const questionInRound = (session.currentQuestion % QUESTIONS_PER_ROUND) + 1;
+
       return (
         <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
           <div style={{ padding: '16px', borderBottom: '1px solid #222' }}>
             <div style={{ maxWidth: '400px', margin: '0 auto' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#666', marginBottom: '8px', fontFamily: 'monospace' }}>
-                <span>{session.currentQuestion + 1} / {QUESTIONS.length}</span>
+                <span>RONDA {currentRound}/3 · {questionInRound}/{QUESTIONS_PER_ROUND}</span>
                 <span>{BLOCKS[question.block].emoji} {BLOCKS[question.block].name}</span>
               </div>
-              <div style={{ display: 'flex', gap: '4px' }}>
-                {QUESTIONS.map((_, i) => (
-                  <div key={i} style={{ height: '6px', flex: 1, borderRadius: '3px', background: i < session.currentQuestion ? '#fff' : i === session.currentQuestion ? '#666' : '#222', transition: 'all 0.3s' }} />
+              {/* Round-based progress bar */}
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {[1, 2, 3].map(round => (
+                  <div key={round} style={{ flex: 1, display: 'flex', gap: '2px' }}>
+                    {Array.from({ length: QUESTIONS_PER_ROUND }).map((_, i) => {
+                      const qIndex = (round - 1) * QUESTIONS_PER_ROUND + i;
+                      return (
+                        <div key={i} style={{
+                          height: '6px',
+                          flex: 1,
+                          borderRadius: '3px',
+                          background: qIndex < session.currentQuestion ? BLOCKS[Object.keys(BLOCKS)[round - 1]].color :
+                                     qIndex === session.currentQuestion ? '#666' : '#222',
+                          transition: 'all 0.3s'
+                        }} />
+                      );
+                    })}
+                  </div>
                 ))}
               </div>
             </div>
@@ -1277,6 +1441,21 @@
       const question = QUESTIONS[session.currentQuestion];
       const [timerKey, setTimerKey] = useState(0);
       const [isPaused, setIsPaused] = useState(false);
+      const currentRound = getCurrentRound(session.currentQuestion);
+
+      // Show round summary if needed
+      if (session.showRoundSummary) {
+        const completedRound = currentRound - 1;
+        return (
+          <RoundSummary
+            roundNumber={completedRound}
+            votes={votes}
+            participants={participants}
+            onContinue={() => dispatch({ type: 'CONTINUE_FROM_SUMMARY' })}
+            isParticipant={false}
+          />
+        );
+      }
 
       const currentVotes = { auto: 0, augmented: 0, human: 0 };
       let totalVotes = 0;
@@ -1313,6 +1492,9 @@
 
       useEffect(() => { setTimerKey(k => k + 1); setIsPaused(false); }, [session.currentQuestion]);
 
+      // Calculate progress within current round
+      const questionInRound = (session.currentQuestion % QUESTIONS_PER_ROUND) + 1;
+
       return (
         <div className="scanline" style={{ minHeight: '100vh', padding: '24px' }}>
           <div style={{ maxWidth: '900px', margin: '0 auto' }}>
@@ -1322,12 +1504,42 @@
                   <span className={isPaused ? '' : 'animate-pulse'} style={{ display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%', background: isPaused ? '#fbbf24' : '#ef4444' }}></span>
                   <span style={{ fontSize: '14px', fontWeight: 'bold', letterSpacing: '2px' }}>{isPaused ? 'PAUSADO' : 'EN VIVO'}</span>
                 </div>
-                <span style={{ color: '#666', fontFamily: 'monospace' }}>{String(participants.length).padStart(3, '0')} participantes</span>
+                <span style={{ color: '#666', fontFamily: 'monospace' }}>RONDA {currentRound}/3 · {String(participants.length).padStart(3, '0')} participantes</span>
               </div>
               <button onClick={handleEndSession} style={{ padding: '8px 16px', border: '1px solid #333', background: 'transparent', color: '#fff', cursor: 'pointer', borderRadius: '8px' }}>FINALIZAR ✕</button>
             </div>
 
-            <div style={{ marginBottom: '32px' }}><PixelProgressBar current={session.currentQuestion} total={QUESTIONS.length} /></div>
+            {/* Round-based progress bar */}
+            <div style={{ marginBottom: '32px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#666', marginBottom: '8px', fontFamily: 'monospace' }}>
+                <span>Pregunta {questionInRound}/{QUESTIONS_PER_ROUND} de la ronda</span>
+                <span>{session.currentQuestion + 1}/{QUESTIONS.length} total</span>
+              </div>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                {[1, 2, 3].map(round => (
+                  <div key={round} style={{ flex: 1 }}>
+                    <div style={{ fontSize: '10px', color: round === currentRound ? BLOCKS[Object.keys(BLOCKS)[round - 1]].color : '#444', marginBottom: '4px', textAlign: 'center' }}>
+                      {BLOCKS[Object.keys(BLOCKS)[round - 1]].emoji} R{round}
+                    </div>
+                    <div style={{ display: 'flex', gap: '2px' }}>
+                      {Array.from({ length: QUESTIONS_PER_ROUND }).map((_, i) => {
+                        const qIndex = (round - 1) * QUESTIONS_PER_ROUND + i;
+                        return (
+                          <div key={i} style={{
+                            height: '8px',
+                            flex: 1,
+                            borderRadius: '4px',
+                            background: qIndex < session.currentQuestion ? BLOCKS[Object.keys(BLOCKS)[round - 1]].color :
+                                       qIndex === session.currentQuestion ? '#fff' : '#222',
+                            transition: 'all 0.3s'
+                          }} />
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
 
             <div className="glass animate-fadeInUp" key={session.currentQuestion} style={{ padding: '40px', marginBottom: '32px', borderRadius: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
@@ -1399,8 +1611,8 @@
       });
 
       const handleExport = () => {
-        let csv = 'Pregunta,Bloque,Automatizable,Aumentada,Humana,Total,Consenso\n';
-        resultsPerQuestion.forEach(r => { csv += `"${r.question.text}",${r.question.block},${r.counts.auto},${r.counts.augmented},${r.counts.human},${r.counts.total},${Math.round(r.consensus * 100)}%\n`; });
+        let csv = 'Ronda,Bloque,Pregunta,Automatizable,Aumentada,Humana,Total,Consenso\n';
+        resultsPerQuestion.forEach(r => { csv += `${r.question.round},"${BLOCKS[r.question.block].name}","${r.question.text}",${r.counts.auto},${r.counts.augmented},${r.counts.human},${r.counts.total},${Math.round(r.consensus * 100)}%\n`; });
         const blob = new Blob([csv], { type: 'text/csv' });
         const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'triageai-resultados.csv'; a.click();
       };
@@ -1420,7 +1632,7 @@
             </div>
 
             <div style={{ display: 'flex', gap: '8px', marginBottom: '32px' }}>
-              {[['consensus', '📊 CONSENSO'], ['heatmap', '🗺️ BLOQUES']].map(([id, label]) => (
+              {[['consensus', '📊 CONSENSO'], ['heatmap', '🗺️ RONDAS']].map(([id, label]) => (
                 <button key={id} onClick={() => setViewMode(id)} className="hover-lift" style={{ padding: '12px 24px', background: viewMode === id ? '#fff' : 'transparent', color: viewMode === id ? '#000' : '#fff', fontWeight: 'bold', border: viewMode === id ? 'none' : '1px solid #333', cursor: 'pointer', borderRadius: '8px' }}>{label}</button>
               ))}
             </div>
@@ -1468,20 +1680,38 @@
 
             {viewMode === 'heatmap' && (
               <div style={{ border: '2px solid #333', padding: '32px', borderRadius: '16px' }}>
-                <div style={{ fontSize: '12px', color: '#666', letterSpacing: '2px', marginBottom: '32px' }}>RESULTADOS POR BLOQUE</div>
-                {Object.entries(BLOCKS).map(([blockId, blockInfo]) => {
+                <div style={{ fontSize: '12px', color: '#666', letterSpacing: '2px', marginBottom: '32px' }}>RESULTADOS POR RONDA</div>
+                {Object.entries(BLOCKS).map(([blockId, blockInfo], index) => {
                   const data = resultsByBlock[blockId];
                   const total = data.total || 1;
+                  const roundQuestions = getQuestionsForRound(index + 1);
                   return (
-                    <div key={blockId} style={{ marginBottom: '32px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                        <span style={{ fontSize: '28px' }}>{blockInfo.emoji}</span>
-                        <span style={{ fontWeight: 'bold', letterSpacing: '2px', color: blockInfo.color }}>{blockInfo.name}</span>
+                    <div key={blockId} style={{ marginBottom: '40px', padding: '24px', background: '#0a0a0a', borderRadius: '16px', border: `1px solid ${blockInfo.color}30` }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                        <span style={{ fontSize: '32px' }}>{blockInfo.emoji}</span>
+                        <div>
+                          <div style={{ fontSize: '10px', color: '#666', letterSpacing: '2px' }}>RONDA {index + 1}</div>
+                          <span style={{ fontWeight: 'bold', letterSpacing: '1px', color: blockInfo.color, fontSize: '18px' }}>{blockInfo.name}</span>
+                        </div>
                       </div>
-                      <div style={{ display: 'flex', height: '48px', borderRadius: '12px', overflow: 'hidden' }}>
-                        <div style={{ width: `${(data.auto / total) * 100}%`, background: 'linear-gradient(90deg, #fff 0%, #ccc 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', fontWeight: 'bold' }}>{Math.round((data.auto / total) * 100) > 10 && `🤖 ${Math.round((data.auto / total) * 100)}%`}</div>
-                        <div style={{ width: `${(data.augmented / total) * 100}%`, background: 'linear-gradient(90deg, #a78bfa 0%, #7c3aed 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold' }}>{Math.round((data.augmented / total) * 100) > 10 && `🤝 ${Math.round((data.augmented / total) * 100)}%`}</div>
-                        <div style={{ width: `${(data.human / total) * 100}%`, background: 'linear-gradient(90deg, #f97316 0%, #c2410c 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold' }}>{Math.round((data.human / total) * 100) > 10 && `✋ ${Math.round((data.human / total) * 100)}%`}</div>
+                      <div style={{ display: 'flex', height: '56px', borderRadius: '12px', overflow: 'hidden', marginBottom: '16px' }}>
+                        <div style={{ width: `${(data.auto / total) * 100}%`, background: 'linear-gradient(90deg, #fff 0%, #ccc 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', fontWeight: 'bold', fontSize: '16px' }}>{Math.round((data.auto / total) * 100) > 10 && `🤖 ${Math.round((data.auto / total) * 100)}%`}</div>
+                        <div style={{ width: `${(data.augmented / total) * 100}%`, background: 'linear-gradient(90deg, #a78bfa 0%, #7c3aed 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '16px' }}>{Math.round((data.augmented / total) * 100) > 10 && `🤝 ${Math.round((data.augmented / total) * 100)}%`}</div>
+                        <div style={{ width: `${(data.human / total) * 100}%`, background: 'linear-gradient(90deg, #f97316 0%, #c2410c 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '16px' }}>{Math.round((data.human / total) * 100) > 10 && `✋ ${Math.round((data.human / total) * 100)}%`}</div>
+                      </div>
+                      {/* Individual questions in this round */}
+                      <div style={{ display: 'grid', gap: '8px' }}>
+                        {roundQuestions.map((q) => {
+                          const qResult = resultsPerQuestion.find(r => r.question.index === q.index);
+                          if (!qResult) return null;
+                          return (
+                            <div key={q.index} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 12px', background: '#111', borderRadius: '8px' }}>
+                              <span style={{ fontSize: '20px' }}>{VOTE_TYPES[qResult.winner].pixel}</span>
+                              <span style={{ flex: 1, fontSize: '13px', color: '#ccc' }}>{q.text}</span>
+                              <span style={{ fontFamily: 'monospace', fontSize: '14px', fontWeight: 'bold', color: VOTE_TYPES[qResult.winner].color }}>{Math.round(qResult.consensus * 100)}%</span>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   );
